@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Navigation Shortcuts</string>
+    <string name="widget_description">Tap a destination to start Google Maps driving navigation</string>
+    <string name="navigate_to">Navigate to %1$s</string>
+    <string name="main_instructions">Long-press your home screen, open Widgets and add the \"Navigation Shortcuts\" widget.</string>
+</resources>

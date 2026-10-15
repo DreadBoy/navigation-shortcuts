@@ -1,7 +1,9 @@
 vendor/
 .gradle/
+.kotlin/
 build/
 local.properties
 *.jks
 *.keystore
+keystore.properties
 .idea/

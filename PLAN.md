@@ -14,10 +14,10 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 
 ### Phase 0 — Repo and project skeleton
 - [x] 0.1 Init git with personal identity, commit spec as-is, `CLAUDE.md`, `.gitignore` (`vendor/`, keystores, build output). — `git log` shows both commits as `Matic Leva <vertical3life@gmail.com>`.
-- [ ] 0.2 [B] Android project: Kotlin, single `app` module, Gradle version catalog, `applicationId` decided and recorded, `minSdk 31` (needed for `widgetFeatures="reconfigurable"` and `requestPinAppWidget` behaviour), `targetSdk` = latest stable. Debug build installs on an emulator.
-- [ ] 0.3 [M] Widget rendering technology: plain `RemoteViews` (nested `LinearLayout` rows built per grid size) vs Jetpack Glance. Criteria: arbitrary rows×cols, transparent empty cells, per-cell `PendingIntent`, icon bitmaps, APK size. Recommendation going in: plain `RemoteViews`. Record decision.
-- [ ] 0.4 [M] Storage: Preferences DataStore vs Room for per-widget config `{widgetId → rows, cols, [entries{label, destination, icon{source,name}}]}` plus the pending list. Recommendation going in: DataStore with one serialized config per widget. Record decision.
-- [ ] 0.5 [B] Release keystore generated locally now (never committed or printed), so every APK the user sideloads — pre-MVP included — is signed with the same key and later builds install over it. Keystore location and backup steps in `docs/release-procedure.md`.
+- [x] 0.2 [B] Android project: Kotlin, single `app` module, Gradle version catalog, `applicationId` decided and recorded, `minSdk 31` (needed for `widgetFeatures="reconfigurable"` and `requestPinAppWidget` behaviour), `targetSdk` = latest stable. Debug build installs on an emulator. — Fresh verifier: clean `assembleDebug lint testDebugUnitTest assembleRelease` 90/90 tasks green; AGP 9.4.1, Gradle 9.8.1, compile/target 36.
+- [x] 0.3 [M] Widget rendering technology: plain `RemoteViews` (nested `LinearLayout` rows built per grid size) vs Jetpack Glance. Criteria: arbitrary rows×cols, transparent empty cells, per-cell `PendingIntent`, icon bitmaps, APK size. Recommendation going in: plain `RemoteViews`. Record decision. — Decided plain RemoteViews (release APK 33 KB); see decisions 0.3.
+- [x] 0.4 [M] Storage: Preferences DataStore vs Room for per-widget config `{widgetId → rows, cols, [entries{label, destination, icon{source,name}}]}` plus the pending list. Recommendation going in: DataStore with one serialized config per widget. Record decision. — Decided Preferences DataStore, JSON per widget; see decisions 0.4.
+- [x] 0.5 [B] Release keystore generated locally now (never committed or printed), so every APK the user sideloads — pre-MVP included — is signed with the same key and later builds install over it. Keystore location and backup steps in `docs/release-procedure.md`. — Keystore at `~/.config/navigation-shortcuts/` (600, alphanumeric passwords); apksigner shows CN=Matic Leva, v2+v3; missing properties fails release clearly.
 
 ### Phase 1 — Test harness and fact-finding (all [M], can run in parallel)
 - [ ] 1.1 Niagara APK: find the package name, download from a public mirror into `vendor/niagara.apk` (git-ignored). If the download is blocked, ask the user to drop it in `vendor/`.
@@ -30,7 +30,7 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 - [ ] 1.8 [B] UI Automator 2.3+ test module with helpers: launcher setup, place widget, find cell by label, wait for Maps navigation foreground, force-stop app. Proven by a smoke test placing a stub widget on Niagara's home screen.
 
 ### Phase 2 — Pre-MVP: hardcoded widget on the user's phone
-- [ ] 2.1 [B] Widget with one hardcoded destination (built-in icon + label), no config activity; tap → `google.navigation:q=<dest>&mode=d` with the Maps package set. Destination is a build-time constant.
+- [x] 2.1 [B] Widget with one hardcoded destination (built-in icon + label), no config activity; tap → `google.navigation:q=<dest>&mode=d` with the Maps package set. Destination is a build-time constant. — Verified from the APK: receiver + provider info, intent `google.navigation:q=Maribor%2C%20Slovenija&mode=d` to Maps package, URI encoder matches AOSP on 200k random strings. On-device check is 2.2.
 - [ ] 2.2 [B] E2E on Niagara: place widget, tap, Maps navigation in foreground; repeat after `am force-stop`.
 - [ ] 2.3 [B] Signed release APK built locally (key from 0.5), handed to the user with sideload steps.
 - [ ] 2.4 [U] User sideloads on the Pixel 10, places it in the Niagara widget stack, tries it (ideally in the car), reports anything off → backlog.
@@ -77,3 +77,7 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 
 ## Backlog
 _(issues found during verification, with repro and severity)_
+- [low] Raise compile/targetSdk to 37 once the android-37 platform is installed (lint warns).
+- [low] Widget info has `previewLayout` only, no `previewImage` fallback — check how Niagara's picker shows it (1.3/2.2).
+- [medium] Maps missing/disabled → tap does nothing, no message. Add a fallback toast or `geo:` intent.
+- [low] CI keystore reconstruction from secrets is documented but not implemented (7.1).
