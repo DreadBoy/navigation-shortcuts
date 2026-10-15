@@ -7,3 +7,4 @@ local.properties
 *.keystore
 keystore.properties
 .idea/
+.claude/worktrees/
