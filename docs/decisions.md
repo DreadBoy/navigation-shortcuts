@@ -39,3 +39,45 @@ Evidence (Niagara Launcher `bitpit.launcher` 1.16.33, versionCode 1639, inspecte
 - A runtime load (`<queries>` + `getResourcesForApplication` + `getIdentifier` + Niagara theme styles) would yield only the bare glyph, depend on private resource names and the user's private palette, and reuse Pro-gated art.
 
 Recipe for our set: hand-drawn 24×24 glyphs, white sticker border, 0.7-scaled glyph, gradient fill matching the user's palette, 1.5 outline. Exact palette to be matched against the user's phone in step 5.2.
+
+## 1.1 Niagara APK source
+
+- Package `bitpit.launcher`, v1.16.33 (versionCode 1639), universal APK (no splits), 14,263,561 bytes, sha256 `639d0578eb50b9b2d79937360b0ff65145760022fe1273053b4338a7103e84f3`. Signer `CN=Peter Huber, …, C=DE`, cert SHA-256 `ccb918002c40334b416899258de4f730a36c5d38821b3cb6fcb8c15a4b8198ed`.
+- Source: the developer's official GitHub releases (linked from help.niagaralauncher.app): `https://github.com/NiagaraLauncher/Niagara-Issues/releases/download/v<ver>/Niagara_Launcher_v<ver>-release.apk`. The GitHub API publishes each asset's sha256, so the download can be pinned and checked. Mirrors are not needed (APKPure 403, Uptodown Cloudflare, APKMirror outdated).
+- Home activity: `bitpit.launcher/.ui.HomeActivity`.
+- Consequence for CI (1.7): since the developer publishes the APK on GitHub, CI can download a pinned version + sha256 from there instead of a private fixtures repo. To confirm in 1.7.
+
+## 1.2 Emulator and Google Maps
+
+- Image `system-images;android-36;google_apis_playstore;arm64-v8a` r07; AVD `navshort-e2e` (pixel_8 profile, 4 GB RAM). Headless cold boot 36–38 s.
+- Maps 25.11.01 is preinstalled and navigation works **without sign-in**: with `adb emu geo fix 14.5058 46.0569`, `google.navigation:q=…&mode=d` goes straight to active turn-by-turn (Maribor, `46.2397,15.2677`, "Stožice Stadium, Ljubljana"), ~1 s warm.
+- First-run dialogs after `pm clear` (with location + notification permissions pre-granted via `pm grant`): "Make it your map" → `Skip`; safety disclaimer → `android:id/button1` "Got it"; "How navigation data…" → `maps:id/dialog_positive_button` "Dismiss".
+- "Navigation is showing" assertion: any of `com.google.android.apps.maps:id/navigation_time_remaining_label`, `step_instruction_content`, `nav_container` (absent on Maps home — `search_omnibox_text_box` — and route preview — desc `Start`).
+- Firing a new destination during navigation shows "Exit navigation?" with a ~5 s countdown; timeout keeps the old route. E2E: force-stop Maps between taps, or tap `Yes`.
+- Don't use `ftid` in the navigation intent — it does not start navigation.
+- Risks: Play Store/GMS self-update ~3 min after first boot kills Maps and grows the AVD's userdata (~0.5 GB / 15 min); adb `uiautomator dump` is flaky during navigation (instrumented UI Automator to be proven in 1.8).
+
+## 1.3 Niagara on the emulator
+
+Setup: `adb install -r vendor/niagara.apk`; `cmd package set-home-activity bitpit.launcher/.ui.HomeActivity`; `appwidget grantbind --package bitpit.launcher --user 0`; onboarding `button_positive` → pick a favourite + `large_fab_extended` → `Get started` → `floating_tip_button` → one alphabet-bar swipe + BACK. Scripted in `e2e/setup-emulator.sh` (82 s from clean).
+
+Adding a widget: long-press `bitpit.launcher:id/clock` → `Add Custom Widget` → picker `bitpit.launcher:id/recycler_view` (search field finds apps, not widgets; scroll to our label) → app row → preview (`AppWidgetHostView`, desc = widget label). Placed widget appears under the clock in `container`. HOME on Niagara opens app search; close with BACK.
+
+**Widget stacks are Niagara Pro-only** (second custom widget → "Create Widget Stack?" with only "Unlock with Niagara Pro" / "Replace widget"). Not re-verified by the second agent yet. Impact: the stack parts of scenarios 1 and 6 can't run on the free-tier emulator — see open user decision in PLAN.md.
+
+## 1.4 Niagara widget capabilities
+
+- (a) Long-press reconfigure: **yes** — "Change widget settings" appears for widgets with a configure activity + `widgetFeatures=reconfigurable`.
+- (b) `requestPinAppWidget`: Niagara declares `CONFIRM_PIN_APPWIDGET` (`bitpit.launcher.shortcut.AddItemActivity`); must be exercised with our app. Keep the pending-list fallback until proven.
+- (c) Config activity on placement: **yes**. (d) Placement without a config activity: **yes**.
+- Slot: one custom widget slot, ~313×192 dp; "Move and resize" changes height only.
+- "Replace widget" left the old widget IDs bound, so `onDeleted` may not run: cleanup must prune stored configs against `getAppWidgetIds()`.
+- Items (a), (c), slot size: second-agent re-check pending (disk); re-test with our app in 1.8/2.2.
+
+## 1.5 Google Maps share format
+
+- Maps 25.11 (signed out) shares only the URL `https://maps.app.goo.gl/<id>?g_st=a` — no name or address. The phone's Maps may share "Name\nAddress\nURL"; the parser accepts both.
+- Resolve by reading the first `Location` header with a non-browser user agent (single 302 to `https://www.google.com/maps/place/<segment>/data=…`). A browser user agent gets an `intent://` redirect instead — never send one.
+- Named places (9 of 12 samples): `data=!4m2!3m1!1s<ftid>`, **no place coordinates** in the URL. Coordinates in the page HTML are the requester's IP viewport — never parse them. Long-press / coordinate search / dropped pin (3 of 12): `!3d<lat>!4d<lng>`.
+- **Decision for 3.4:** `!3d!4d` present → destination `lat,lng`; otherwise destination = URL-decoded `/place/` segment as a text query (this is the normal case for named places, not a fallback — the UI must not call it one). Label = segment up to the first comma; for coordinates-only, "Dropped pin" (editable).
+- Fixtures: `app/src/test/resources/maps-share-fixtures.json` (12 samples with `parser_rules`).

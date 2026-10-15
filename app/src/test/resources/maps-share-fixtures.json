@@ -1,0 +1,432 @@
+{
+  "captured": "2026-10-15, emulator API36 Play image, Google Maps 25.11.01.735126028 signed out; resolved from macOS with curl 'default' UA (curl/8) and Dalvik UA (same 1-hop 302)",
+  "shared_text_format": "EXTRA_TEXT is ONLY the short URL https://maps.app.goo.gl/<17 chars>?g_st=a (Copy-to-clipboard gives ?g_st=ac). No name/address lines.",
+  "parser_rules": [
+    "Use !3d<lat>!4d<lng> from the final URL when present; otherwise navigate by the /maps/place/<segment> text.",
+    "The place segment is sometimes NAME ONLY (e.g. 'Stožice Stadium') and sometimes 'name, street, postcode city, country'.",
+    "A 'lat,lng' place segment (dropped pin) has no name: label comes from the Maps UI title ('Dropped pin') or the user.",
+    "Never read coordinates from the page HTML (APP_INITIALIZATION_STATE camera [[alt,lng,lat]] / og:image staticmap center=): they are the requester's IP-based viewport, not the place."
+  ],
+  "fixtures": [
+    {
+      "kind": "poi-stadium",
+      "id": "stozice",
+      "maps_ui_title": "Stožice Stadium (search 'Stožice Stadium Ljubljana', first result)",
+      "shared_text": "https://maps.app.goo.gl/fc1PMmD6rxxv1Kx59?g_st=a",
+      "short_url": "https://maps.app.goo.gl/fc1PMmD6rxxv1Kx59?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Sto%C5%BEice+Stadium/data=!4m2!3m1!1s0x476532eff5bdd4a7:0xda0cde94b1e5e5ed?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDkuwMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=f6696e0a-b91a-4603-a2d5-94119c66f65d&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/fc1PMmD6rxxv1Kx59?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Sto%C5%BEice+Stadium/data=!4m2!3m1!1s0x476532eff5bdd4a7:0xda0cde94b1e5e5ed?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDkuwMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=f6696e0a-b91a-4603-a2d5-94119c66f65d&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Sto%C5%BEice+Stadium/data=!4m2!3m1!1s0x476532eff5bdd4a7:0xda0cde94b1e5e5ed?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDkuwMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=f6696e0a-b91a-4603-a2d5-94119c66f65d&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/fc1PMmD6rxxv1Kx59?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/fc1PMmD6rxxv1Kx59?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Sto%25C5%25BEice%2BStadium/data%3D!4m2!3m1!1s0x476532eff5bdd4a7:0xda0cde94b1e5e5ed%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACDkuwMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D699d63de-b476-4b25-98c1-b2c94066be6b;end;"
+        }
+      ],
+      "place_path_segment": "Stožice Stadium",
+      "ftid": "0x476532eff5bdd4a7:0xda0cde94b1e5e5ed",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Stožice Stadium",
+      "expected_query": "Stožice Stadium",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is NAME ONLY (no address)"
+    },
+    {
+      "kind": "street-address",
+      "id": "addr-slovenska1",
+      "maps_ui_title": "Slovenska cesta 1 / 1000 Ljubljana, Slovenia",
+      "shared_text": "https://maps.app.goo.gl/QuTbuWhTYQrUYQ8D6?g_st=a",
+      "short_url": "https://maps.app.goo.gl/QuTbuWhTYQrUYQ8D6?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Slovenska+cesta+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d667cee1665:0xc72dc8e6ee4a5832?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=0e47b249-493f-44f1-9a3f-e9f9d82c02d8&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/QuTbuWhTYQrUYQ8D6?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Slovenska+cesta+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d667cee1665:0xc72dc8e6ee4a5832?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=0e47b249-493f-44f1-9a3f-e9f9d82c02d8&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Slovenska+cesta+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d667cee1665:0xc72dc8e6ee4a5832?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=0e47b249-493f-44f1-9a3f-e9f9d82c02d8&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/QuTbuWhTYQrUYQ8D6?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/QuTbuWhTYQrUYQ8D6?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Slovenska%2Bcesta%2B1,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m2!3m1!1s0x47652d667cee1665:0xc72dc8e6ee4a5832%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3Daa270f47-82cc-4e7b-881b-c012ccbe726a;end;"
+        }
+      ],
+      "place_path_segment": "Slovenska cesta 1, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47652d667cee1665:0xc72dc8e6ee4a5832",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Slovenska cesta 1",
+      "expected_query": "Slovenska cesta 1, 1000 Ljubljana, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "poi-landmark",
+      "id": "castle",
+      "maps_ui_title": "Ljubljana Castle (Ljubljanski grad)",
+      "shared_text": "https://maps.app.goo.gl/fH6Lh1AMUn5ABSnd9?g_st=a",
+      "short_url": "https://maps.app.goo.gl/fH6Lh1AMUn5ABSnd9?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Ljubljana+Castle,+Grajska+planota+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d635a05207f:0xe667d30acde6b278?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=1bbb71a0-ffef-4773-a1d7-6f730f02e2ef&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/fH6Lh1AMUn5ABSnd9?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Ljubljana+Castle,+Grajska+planota+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d635a05207f:0xe667d30acde6b278?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=1bbb71a0-ffef-4773-a1d7-6f730f02e2ef&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Ljubljana+Castle,+Grajska+planota+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d635a05207f:0xe667d30acde6b278?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=1bbb71a0-ffef-4773-a1d7-6f730f02e2ef&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/fH6Lh1AMUn5ABSnd9?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/fH6Lh1AMUn5ABSnd9?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Ljubljana%2BCastle,%2BGrajska%2Bplanota%2B1,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m2!3m1!1s0x47652d635a05207f:0xe667d30acde6b278%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3Dd47df0ea-7c26-4a06-a8f5-f47233b4ef34;end;"
+        }
+      ],
+      "place_path_segment": "Ljubljana Castle, Grajska planota 1, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47652d635a05207f:0xe667d30acde6b278",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Ljubljana Castle",
+      "expected_query": "Ljubljana Castle, Grajska planota 1, 1000 Ljubljana, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "business-hotel",
+      "id": "hotel-union",
+      "maps_ui_title": "Grand Hotel Union Eurostars",
+      "shared_text": "https://maps.app.goo.gl/qqwpg851fBwzeL4u8?g_st=a",
+      "short_url": "https://maps.app.goo.gl/qqwpg851fBwzeL4u8?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Grand+Hotel+Union+Eurostars,+Miklo%C5%A1i%C4%8Deva+c.+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d620c63725b:0xaa704304984fea35?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=b686fff1-a3d4-4689-aea8-f4164ec8d8e6&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/qqwpg851fBwzeL4u8?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Grand+Hotel+Union+Eurostars,+Miklo%C5%A1i%C4%8Deva+c.+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d620c63725b:0xaa704304984fea35?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=b686fff1-a3d4-4689-aea8-f4164ec8d8e6&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Grand+Hotel+Union+Eurostars,+Miklo%C5%A1i%C4%8Deva+c.+1,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d620c63725b:0xaa704304984fea35?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=b686fff1-a3d4-4689-aea8-f4164ec8d8e6&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/qqwpg851fBwzeL4u8?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/qqwpg851fBwzeL4u8?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Grand%2BHotel%2BUnion%2BEurostars,%2BMiklo%25C5%25A1i%25C4%258Deva%2Bc.%2B1,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m2!3m1!1s0x47652d620c63725b:0xaa704304984fea35%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3Df9d61eb7-20fb-42f4-b00f-ec047875fd9c;end;"
+        }
+      ],
+      "place_path_segment": "Grand Hotel Union Eurostars, Miklošičeva c. 1, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47652d620c63725b:0xaa704304984fea35",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Grand Hotel Union Eurostars",
+      "expected_query": "Grand Hotel Union Eurostars, Miklošičeva c. 1, 1000 Ljubljana, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "street-address",
+      "id": "addr-trubarjeva",
+      "maps_ui_title": "Trubarjeva cesta 5 / 1000 Ljubljana, Slovenia",
+      "shared_text": "https://maps.app.goo.gl/KApDacEKvWXT9j7c6?g_st=a",
+      "short_url": "https://maps.app.goo.gl/KApDacEKvWXT9j7c6?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Trubarjeva+cesta+5,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d625bc7041b:0x8678edba6bc98597?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=4cdada50-fc69-46a9-8cff-873674344b1f&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/KApDacEKvWXT9j7c6?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Trubarjeva+cesta+5,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d625bc7041b:0x8678edba6bc98597?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=4cdada50-fc69-46a9-8cff-873674344b1f&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Trubarjeva+cesta+5,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d625bc7041b:0x8678edba6bc98597?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=4cdada50-fc69-46a9-8cff-873674344b1f&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/KApDacEKvWXT9j7c6?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/KApDacEKvWXT9j7c6?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Trubarjeva%2Bcesta%2B5,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m2!3m1!1s0x47652d625bc7041b:0x8678edba6bc98597%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3De0e73d29-9628-4ace-9eea-ae9027e7888c;end;"
+        }
+      ],
+      "place_path_segment": "Trubarjeva cesta 5, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47652d625bc7041b:0x8678edba6bc98597",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Trubarjeva cesta 5",
+      "expected_query": "Trubarjeva cesta 5, 1000 Ljubljana, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "business-mall",
+      "id": "btc",
+      "maps_ui_title": "BTC City Ljubljana",
+      "shared_text": "https://maps.app.goo.gl/aicwPVgAV46oLi9n9?g_st=a",
+      "short_url": "https://maps.app.goo.gl/aicwPVgAV46oLi9n9?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/BTC+City+Ljubljana,+Ameri%C5%A1ka+ulica+2,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47653267e8a055b9:0xbe301609a5baef77?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=6eb37fea-f68e-45b0-af33-095a06bd2cc1&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/aicwPVgAV46oLi9n9?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/BTC+City+Ljubljana,+Ameri%C5%A1ka+ulica+2,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47653267e8a055b9:0xbe301609a5baef77?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=6eb37fea-f68e-45b0-af33-095a06bd2cc1&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/BTC+City+Ljubljana,+Ameri%C5%A1ka+ulica+2,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47653267e8a055b9:0xbe301609a5baef77?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=6eb37fea-f68e-45b0-af33-095a06bd2cc1&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/aicwPVgAV46oLi9n9?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/aicwPVgAV46oLi9n9?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/BTC%2BCity%2BLjubljana,%2BAmeri%25C5%25A1ka%2Bulica%2B2,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m2!3m1!1s0x47653267e8a055b9:0xbe301609a5baef77%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D21cdddbb-71b5-4fba-93ba-09cbebae9b32;end;"
+        }
+      ],
+      "place_path_segment": "BTC City Ljubljana, Ameriška ulica 2, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47653267e8a055b9:0xbe301609a5baef77",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "BTC City Ljubljana",
+      "expected_query": "BTC City Ljubljana, Ameriška ulica 2, 1000 Ljubljana, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "street-address-other-city",
+      "id": "addr-maribor",
+      "maps_ui_title": "Glavni trg 14 / 2000 Maribor, Slovenia",
+      "shared_text": "https://maps.app.goo.gl/uKmXdwubL2YpMfnL9?g_st=a",
+      "short_url": "https://maps.app.goo.gl/uKmXdwubL2YpMfnL9?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Glavni+trg+14,+2000+Maribor,+Slovenia/data=!4m2!3m1!1s0x476f77a8b11059db:0x43602bdebee72e7e?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=0e9ff314-79ed-4484-af9b-4efeb2b3766e&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/uKmXdwubL2YpMfnL9?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Glavni+trg+14,+2000+Maribor,+Slovenia/data=!4m2!3m1!1s0x476f77a8b11059db:0x43602bdebee72e7e?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=0e9ff314-79ed-4484-af9b-4efeb2b3766e&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Glavni+trg+14,+2000+Maribor,+Slovenia/data=!4m2!3m1!1s0x476f77a8b11059db:0x43602bdebee72e7e?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=0e9ff314-79ed-4484-af9b-4efeb2b3766e&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/uKmXdwubL2YpMfnL9?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/uKmXdwubL2YpMfnL9?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Glavni%2Btrg%2B14,%2B2000%2BMaribor,%2BSlovenia/data%3D!4m2!3m1!1s0x476f77a8b11059db:0x43602bdebee72e7e%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D4231d135-db61-43da-ae18-ed4425c6afb6;end;"
+        }
+      ],
+      "place_path_segment": "Glavni trg 14, 2000 Maribor, Slovenia",
+      "ftid": "0x476f77a8b11059db:0x43602bdebee72e7e",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Glavni trg 14",
+      "expected_query": "Glavni trg 14, 2000 Maribor, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "locality",
+      "id": "town-bled",
+      "maps_ui_title": "Bled / 4260, Slovenia",
+      "shared_text": "https://maps.app.goo.gl/LWTdzs1ciMwtDCo76?g_st=a",
+      "short_url": "https://maps.app.goo.gl/LWTdzs1ciMwtDCo76?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/4260+Bled,+Slovenia/data=!4m2!3m1!1s0x477a8e1dd7139961:0x400f81c823fec50?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=05913049-9a78-43ee-841e-20050c2c3df9&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/LWTdzs1ciMwtDCo76?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/4260+Bled,+Slovenia/data=!4m2!3m1!1s0x477a8e1dd7139961:0x400f81c823fec50?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=05913049-9a78-43ee-841e-20050c2c3df9&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/4260+Bled,+Slovenia/data=!4m2!3m1!1s0x477a8e1dd7139961:0x400f81c823fec50?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=05913049-9a78-43ee-841e-20050c2c3df9&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/LWTdzs1ciMwtDCo76?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/LWTdzs1ciMwtDCo76?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/4260%2BBled,%2BSlovenia/data%3D!4m2!3m1!1s0x477a8e1dd7139961:0x400f81c823fec50%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D31175fd7-f9d3-4508-b86a-53f005989e57;end;"
+        }
+      ],
+      "place_path_segment": "4260 Bled, Slovenia",
+      "ftid": "0x477a8e1dd7139961:0x400f81c823fec50",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "4260 Bled",
+      "expected_query": "4260 Bled, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "business-cafe",
+      "id": "cafe",
+      "maps_ui_title": "Kavarna Zvezda, Park Zvezda",
+      "shared_text": "https://maps.app.goo.gl/SWeJqyuwUGhH1R4N7?g_st=a",
+      "short_url": "https://maps.app.goo.gl/SWeJqyuwUGhH1R4N7?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Kavarna+Zvezda,+Park+Zvezda,+Kongresni+trg+3,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d63bf5ee6df:0x7b89da57cdd0d8c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=96a81647-5d2c-4c8b-9aa2-5aff70fcdf42&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/SWeJqyuwUGhH1R4N7?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Kavarna+Zvezda,+Park+Zvezda,+Kongresni+trg+3,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d63bf5ee6df:0x7b89da57cdd0d8c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=96a81647-5d2c-4c8b-9aa2-5aff70fcdf42&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Kavarna+Zvezda,+Park+Zvezda,+Kongresni+trg+3,+1000+Ljubljana,+Slovenia/data=!4m2!3m1!1s0x47652d63bf5ee6df:0x7b89da57cdd0d8c?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=96a81647-5d2c-4c8b-9aa2-5aff70fcdf42&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/SWeJqyuwUGhH1R4N7?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/SWeJqyuwUGhH1R4N7?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Kavarna%2BZvezda,%2BPark%2BZvezda,%2BKongresni%2Btrg%2B3,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m2!3m1!1s0x47652d63bf5ee6df:0x7b89da57cdd0d8c%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D5c0c72fe-5214-4c6f-bd67-29ad11c5b7a6;end;"
+        }
+      ],
+      "place_path_segment": "Kavarna Zvezda, Park Zvezda, Kongresni trg 3, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47652d63bf5ee6df:0x7b89da57cdd0d8c",
+      "expected_lat": null,
+      "expected_lng": null,
+      "expected_name": "Kavarna Zvezda",
+      "expected_query": "Kavarna Zvezda, Park Zvezda, Kongresni trg 3, 1000 Ljubljana, Slovenia",
+      "notes": "No place coordinates in the redirect chain/final URL (only ftid). The server HTML DOES contain coordinates (APP_INITIALIZATION_STATE camera [[alt,lng,lat],...] and og:image staticmap center=) but they are the requester's IP-based viewport, NOT the place (identical for every place incl. Maribor/Bled) - a parser must never read them. Resolve by text query = /place/<segment>.; place segment is 'name, address'"
+    },
+    {
+      "kind": "long-press-snapped-to-poi",
+      "id": "longpress-parking-kongresni",
+      "maps_ui_title": "Parking Kongresni trg (long-press on map snapped to this POI)",
+      "shared_text": "https://maps.app.goo.gl/LwZc5w6rwgYJDpLK7?g_st=a",
+      "short_url": "https://maps.app.goo.gl/LwZc5w6rwgYJDpLK7?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/Parking+Kongresni+trg,+Kongresni+trg+1,+1000+Ljubljana,+Slovenia/data=!4m6!3m5!1s0x47652d616192f48f:0x624d7fc49ccc1bdd!7e2!8m2!3d46.050623699999996!4d14.5037612?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=99d4a6c9-51c1-48f1-9cd2-741d5d566075&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/LwZc5w6rwgYJDpLK7?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/Parking+Kongresni+trg,+Kongresni+trg+1,+1000+Ljubljana,+Slovenia/data=!4m6!3m5!1s0x47652d616192f48f:0x624d7fc49ccc1bdd!7e2!8m2!3d46.050623699999996!4d14.5037612?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=99d4a6c9-51c1-48f1-9cd2-741d5d566075&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/Parking+Kongresni+trg,+Kongresni+trg+1,+1000+Ljubljana,+Slovenia/data=!4m6!3m5!1s0x47652d616192f48f:0x624d7fc49ccc1bdd!7e2!8m2!3d46.050623699999996!4d14.5037612?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=99d4a6c9-51c1-48f1-9cd2-741d5d566075&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/LwZc5w6rwgYJDpLK7?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/LwZc5w6rwgYJDpLK7?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/Parking%2BKongresni%2Btrg,%2BKongresni%2Btrg%2B1,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m6!3m5!1s0x47652d616192f48f:0x624d7fc49ccc1bdd!7e2!8m2!3d46.050623699999996!4d14.5037612%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACCenQoqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D13bcbed9-f955-426d-9f5c-55ab93a709da;end;"
+        }
+      ],
+      "place_path_segment": "Parking Kongresni trg, Kongresni trg 1, 1000 Ljubljana, Slovenia",
+      "ftid": "0x47652d616192f48f:0x624d7fc49ccc1bdd",
+      "expected_lat": 46.050623699999996,
+      "expected_lng": 14.5037612,
+      "expected_name": "Parking Kongresni trg",
+      "expected_query": "Parking Kongresni trg, Kongresni trg 1, 1000 Ljubljana, Slovenia",
+      "notes": "precise coords in !3d!4d of final URL; place segment is 'name, address'"
+    },
+    {
+      "kind": "coordinate-search-snapped-to-street",
+      "id": "coord-query-46.0702,14.5265",
+      "maps_ui_title": "Štajerska c. (geo:0,0?q=46.0702,14.5265)",
+      "shared_text": "https://maps.app.goo.gl/nXgQG1KdnqHBPaYS8?g_st=a",
+      "short_url": "https://maps.app.goo.gl/nXgQG1KdnqHBPaYS8?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/%C5%A0tajerska+c.,+1000+Ljubljana,+Slovenia/data=!4m6!3m5!1s0x4765328cae86aa2f:0xcb9db25cdcef6cea!7e2!8m2!3d46.0702734!4d14.5262151?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=8048cb69-90db-4aea-9dc2-f3dca88227d5&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/nXgQG1KdnqHBPaYS8?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/%C5%A0tajerska+c.,+1000+Ljubljana,+Slovenia/data=!4m6!3m5!1s0x4765328cae86aa2f:0xcb9db25cdcef6cea!7e2!8m2!3d46.0702734!4d14.5262151?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=8048cb69-90db-4aea-9dc2-f3dca88227d5&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/%C5%A0tajerska+c.,+1000+Ljubljana,+Slovenia/data=!4m6!3m5!1s0x4765328cae86aa2f:0xcb9db25cdcef6cea!7e2!8m2!3d46.0702734!4d14.5262151?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=8048cb69-90db-4aea-9dc2-f3dca88227d5&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/nXgQG1KdnqHBPaYS8?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/nXgQG1KdnqHBPaYS8?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/%25C5%25A0tajerska%2Bc.,%2B1000%2BLjubljana,%2BSlovenia/data%3D!4m6!3m5!1s0x4765328cae86aa2f:0xcb9db25cdcef6cea!7e2!8m2!3d46.0702734!4d14.5262151%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACDXggMqSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3Dd06b4a01-b132-4f26-9a50-8f482406304d;end;"
+        }
+      ],
+      "place_path_segment": "Štajerska c., 1000 Ljubljana, Slovenia",
+      "ftid": "0x4765328cae86aa2f:0xcb9db25cdcef6cea",
+      "expected_lat": 46.0702734,
+      "expected_lng": 14.5262151,
+      "expected_name": "Štajerska c.",
+      "expected_query": "Štajerska c., 1000 Ljubljana, Slovenia",
+      "notes": "precise coords in !3d!4d of final URL; place segment is 'name, address'"
+    },
+    {
+      "kind": "dropped-pin",
+      "id": "dropped-pin",
+      "maps_ui_title": "Dropped pin / Near Bežigrad District, 1000 Ljubljana, Slovenia",
+      "shared_text": "https://maps.app.goo.gl/zq2e5LxCZrL48ufy8?g_st=a",
+      "short_url": "https://maps.app.goo.gl/zq2e5LxCZrL48ufy8?g_st=a",
+      "short_url_host": "maps.app.goo.gl",
+      "final_url": "https://www.google.com/maps/place/46.071506,14.527154/data=!4m6!3m5!1s0!7e2!8m2!3d46.071505699999996!4d14.527153799999999?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACD67A0qSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=67f55a04-21e4-40f6-bece-4b4404e56405&g_st=a",
+      "redirect_chain": [
+        {
+          "url": "https://maps.app.goo.gl/zq2e5LxCZrL48ufy8?g_st=a",
+          "status": 302,
+          "location": "https://www.google.com/maps/place/46.071506,14.527154/data=!4m6!3m5!1s0!7e2!8m2!3d46.071505699999996!4d14.527153799999999?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACD67A0qSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=67f55a04-21e4-40f6-bece-4b4404e56405&g_st=a"
+        },
+        {
+          "url": "https://www.google.com/maps/place/46.071506,14.527154/data=!4m6!3m5!1s0!7e2!8m2!3d46.071505699999996!4d14.527153799999999?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI1LjExLjEYACD67A0qSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%3D%3D&skid=67f55a04-21e4-40f6-bece-4b4404e56405&g_st=a",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "redirect_chain_android_chrome_ua": [
+        {
+          "url": "https://maps.app.goo.gl/zq2e5LxCZrL48ufy8?g_st=a",
+          "status": 302,
+          "location": "intent://maps.app.goo.gl/zq2e5LxCZrL48ufy8?g_st=a#Intent;package=com.google.android.gms;action=com.google.firebase.dynamiclinks.VIEW_DYNAMIC_LINK;scheme=https;S.browser_fallback_url=https://www.google.com/maps/place/46.071506,14.527154/data%3D!4m6!3m5!1s0!7e2!8m2!3d46.071505699999996!4d14.527153799999999%3Futm_source%3Dmstt_1&entry%3Dgps&coh%3D192189&g_ep%3DCAESBzI1LjExLjEYACD67A0qSiw5NDIwNzM5NCw5NDIwNzUwNiw5NDIwODUwNiw5NDIxODY1Myw5NDIyOTgzOSw5NDI3NTE2OCwxMDA4MzgzNTksMTIxODE2NDYxQgJVUw%253D%253D&skid%3D6b31b83e-4445-4f0b-a586-9f0b8a8b4a29;end;"
+        }
+      ],
+      "place_path_segment": "46.071506,14.527154",
+      "ftid": null,
+      "expected_lat": 46.071505699999996,
+      "expected_lng": 14.527153799999999,
+      "expected_name": null,
+      "expected_query": "46.071506,14.527154",
+      "notes": "precise coords in !3d!4d of final URL; place segment is 'lat,lng' (dropped pin): there is no name in the URL; the label must come from the Maps UI title ('Dropped pin') or from the user"
+    }
+  ]
+}
