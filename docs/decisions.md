@@ -128,3 +128,14 @@ Adding a widget: long-press `bitpit.launcher:id/clock` → `Add Custom Widget` �
 ## 5.x Icons: inherit from Niagara (user decision, 2026-10-16)
 
 Supersedes the icon conclusion of 1.6. The widget reads Anycon glyphs from the installed Niagara at runtime and draws them in a pack/palette chosen in our widget config, re-creating Niagara's per-pack compositing (from resources if defined there, otherwise from the decompiled code). Accepted limits: new Niagara packs/styles need our re-implementation; the user's Niagara pack/palette choice is private and is picked again in our config; Android offers no API for a launcher's themed icons. Fallback (user decision): if a Niagara glyph can't be loaded, the cell uses the built-in Material icon. The own Sticker-style set from 5.1 was removed — no own copy of Niagara's look. The widget stays a widget (pinned shortcuts, which Niagara would theme itself, were considered and rejected: they lose the grid).
+
+## 5.2 How Niagara styles Anycons
+
+Every pack's look is computed in Niagara's (obfuscated) code; resources supply only the glyphs, mask styles and five textures. All 9 packs can be re-created with Canvas/Paint (investigated statically by decompiling 1.16.33; two fresh verifiers agreed).
+
+- **Read at runtime** from `bitpit.launcher` (`<queries>` + `getResourcesForApplication`): the `ic_ip_*` glyph XML, parsed by us (paths, per-path colour references, viewport, caps/joins — read per glyph, a few aren't 24×24 or round-capped), and the 5 `anycons_tex_*` textures (coral, opal, marble, two watercolor). Names look stable, but every lookup falls back to the built-in Material icon.
+- **Re-implemented by us:** OKLCH colour maths from a seed colour, palettes, mask shapes, the 9 pack composers, and our own per-widget settings for pack, variant, shape, seed colour and text mode (Niagara's are private). Our port freezes the 1.16.33 look.
+- Packs: Material (shape background, glyph 0.62, Light/Vivid/Dark), Sticker (white die-cut stamp, front 0.7, glyph-masked texture or solid fill, 1.5 outline), Dots (dot/diamond only — every destination looks alike), Outline (glyph 2/3, stroke in wallpaper text colour — needs our light/dark setting), Outline Chroma (pastel tint of seed), Watercolor (2 textures), Marble (1 texture), Bright (saturated, always filled), Stellar (procedural starfield, OpenSimplex2 noise).
+- Destination glyphs that exist: home, office, fitness, education, children, shopping, food, cup, health, doctor, air travel, cars, public transport, taxi, banking, movies, books, mail, contacts, religious, plants, a few sports. Missing (→ Material): stadium, university, pool, bar, pharmacy, fuel, mountain, beach, hotel.
+- The full implementer spec (contains decompiled excerpts — never commit or publish it) lives in git-ignored `vendor/niagara-styles/`.
+- Risk: textures and art are gated behind Niagara Pro inside Niagara; we only read them from the user's own installed copy, for personal use.
