@@ -2,7 +2,8 @@
 # Single entry point for the E2E suite (local and CI):
 #   1. reuses a running emulator, or boots the AVD headless (cold boot, no snapshot writes);
 #   2. provisions it with e2e/setup-emulator.sh when needed (Niagara missing / not default home / never set up);
-#   3. pins the mock location, then builds + installs app and test APKs and runs the :e2e suite.
+#   3. pins the mock location, uninstalls the app (clears Niagara ghost widget IDs), installs app and test APKs,
+#      force-stops Niagara, runs the :e2e suite, then GhostWidgetE2eTest last; prints merged results.
 #
 # Usage: e2e/run-e2e.sh [extra gradle args...]
 # Env:   NIAGARA_APK   Niagara APK for provisioning (default: vendor/niagara.apk of this checkout, else of the
@@ -85,30 +86,59 @@ a emu geo fix "$GEO_LNG" "$GEO_LAT" >/dev/null || die "geo fix failed (not an em
 log "mock location lng=$GEO_LNG lat=$GEO_LAT"
 
 cd "$ROOT"
+RESULTS_DIR="$ROOT/e2e/build/outputs/androidTest-results/connected"
+MERGED="$ROOT/e2e/build/outputs/run-e2e-results"
 # Drop results of earlier runs so a build failure can't print a stale summary.
-rm -rf "$ROOT/e2e/build/outputs/androidTest-results/connected"
+rm -rf "$RESULTS_DIR" "$MERGED"
+mkdir -p "$MERGED"
 start=$(date +%s)
 status=0
-# Keep the APKs installed afterwards so the widget and app stay usable for manual checks.
-./gradlew :e2e:connectedDebugAndroidTest \
-  -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true "$@" || status=$?
+APP_ID=io.github.dreadboy.navigationshortcuts
+GHOST_CLASS=io.github.dreadboy.navigationshortcuts.e2e.GhostWidgetE2eTest
+# Uninstall first: Niagara's "Replace widget" leaves widget IDs bound to our provider ("ghosts", decisions 3.9) that
+# only an uninstall clears; GhostWidgetE2eTest creates them on purpose. Then install and restart Niagara: after our
+# app is (re)installed, a running Niagara can keep a stale provider cache and show "Problem loading widget" for a
+# newly placed widget (PLAN backlog). The test task below re-installs the same APKs with `install -r`, which is fine.
+a uninstall "$APP_ID" >/dev/null 2>&1 && log "uninstalled $APP_ID (clears ghost widget IDs)" || true
+./gradlew :app:installDebug :e2e:installDebug "$@" || status=$?
+if [ "$status" = 0 ]; then
+  a shell am force-stop bitpit.launcher
+  log "Niagara force-stopped after install"
+  # Keep the APKs installed afterwards so the widget and app stay usable for manual checks.
+  # Pass 1: everything except the ghost test; pass 2: the ghost test, last (it leaves ghost IDs behind).
+  ./gradlew :e2e:connectedDebugAndroidTest \
+    -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
+    -Pandroid.testInstrumentationRunnerArguments.notClass="$GHOST_CLASS" "$@" || status=$?
+  for f in "$RESULTS_DIR"/debug/*.xml; do [ -f "$f" ] && cp "$f" "$MERGED/1-$(basename "$f")"; done
+  ./gradlew :e2e:connectedDebugAndroidTest \
+    -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
+    -Pandroid.testInstrumentationRunnerArguments.class="$GHOST_CLASS" "$@" || status=$?
+  for f in "$RESULTS_DIR"/debug/*.xml; do [ -f "$f" ] && cp "$f" "$MERGED/2-$(basename "$f")"; done
+fi
 
-results=$(ls "$ROOT"/e2e/build/outputs/androidTest-results/connected/debug/*.xml 2>/dev/null | head -1 || true)
-if [ -n "$results" ]; then
-  python3 -I - "$results" <<'EOF'
+if ls "$MERGED"/*.xml >/dev/null 2>&1; then
+  python3 -I - "$MERGED"/*.xml <<'EOF'
 import html, re, sys
-s = open(sys.argv[1]).read()
-suite = re.search(r'<testsuites? [^>]*tests="(\d+)" failures="(\d+)" errors="(\d+)" skipped="(\d+)"', s)
-if suite:
-    print("[run-e2e] tests=%s failures=%s errors=%s skipped=%s" % suite.groups())
-for m in re.finditer(r'<testcase name="([^"]*)"[^>]*time="([^"]*)"', s):
-    print("[run-e2e]   %-80s %7ss" % (m.group(1), m.group(2)))
-# Failing tests with the first line of their failure message.
-for m in re.finditer(r'<testcase name="([^"]*)"[^>]*?(?<!/)>(.*?)</testcase>', s, re.S):
-    f = re.search(r'<(failure|error)[^>]*>(.*?)</\1>', m.group(2), re.S)
-    if f:
-        first = next((l.strip() for l in f.group(2).splitlines() if l.strip()), "")
-        print("[run-e2e] FAILED %s: %s" % (m.group(1), html.unescape(first)))
+totals = [0, 0, 0, 0]
+cases, failed = [], []
+for path in sys.argv[1:]:
+    s = open(path).read()
+    suite = re.search(r'<testsuites? [^>]*tests="(\d+)" failures="(\d+)" errors="(\d+)" skipped="(\d+)"', s)
+    if suite:
+        totals = [t + int(v) for t, v in zip(totals, suite.groups())]
+    for m in re.finditer(r'<testcase name="([^"]*)"[^>]*time="([^"]*)"', s):
+        cases.append((m.group(1), m.group(2)))
+    # Failing tests with the first line of their failure message.
+    for m in re.finditer(r'<testcase name="([^"]*)"[^>]*?(?<!/)>(.*?)</testcase>', s, re.S):
+        f = re.search(r'<(failure|error)[^>]*>(.*?)</\1>', m.group(2), re.S)
+        if f:
+            first = next((l.strip() for l in f.group(2).splitlines() if l.strip()), "")
+            failed.append((m.group(1), html.unescape(first)))
+print("[run-e2e] tests=%d failures=%d errors=%d skipped=%d" % tuple(totals))
+for name, t in cases:
+    print("[run-e2e]   %-80s %7ss" % (name, t))
+for name, msg in failed:
+    print("[run-e2e] FAILED %s: %s" % (name, msg))
 EOF
 else
   log "no test results (build or install failed before the tests ran)"

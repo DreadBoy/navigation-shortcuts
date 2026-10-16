@@ -8,6 +8,8 @@ uiautomator = "2.4.0"
 androidxCore = "1.17.0"
 kotlinxSerialization = "1.11.0"
 robolectric = "4.16.1"
+datastore = "1.2.1"
+coroutines = "1.11.0"
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -17,6 +19,8 @@ androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

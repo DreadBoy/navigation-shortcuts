@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Grid layout comes from the stored config, not from the reported size (Niagara reports sizes unreliably,
+     decisions 1.3); cells are weighted to fill the slot. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_description"
-    android:initialLayout="@layout/widget_destination"
+    android:initialLayout="@layout/widget_grid"
     android:minWidth="40dp"
     android:minHeight="40dp"
     android:minResizeWidth="40dp"
     android:minResizeHeight="40dp"
-    android:previewLayout="@layout/widget_destination"
+    android:previewLayout="@layout/widget_preview"
     android:resizeMode="horizontal|vertical"
-    android:targetCellWidth="1"
+    android:targetCellWidth="4"
     android:targetCellHeight="1"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

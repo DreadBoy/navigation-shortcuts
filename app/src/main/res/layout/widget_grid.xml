@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget root: rows (widget_row) are added to grid_root at render time and share the height by weight, so the
+     grid fills whatever slot the launcher gives (decisions 3.4); no dependency on appWidgetOptions sizes.
+     render_probe: invisible 1 px image loaded from our RenderProbeProvider when the launcher displays this render
+     (tells displayed widgets from ghost IDs, decisions 3.9). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:id="@+id/grid_root"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical" />
+
+    <ImageView
+        android:id="@+id/render_probe"
+        android:layout_width="1px"
+        android:layout_height="1px"
+        android:importantForAccessibility="no" />
+</FrameLayout>

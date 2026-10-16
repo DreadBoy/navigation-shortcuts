@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Empty cell: fully transparent (the wallpaper shows through), still tappable for the share tip. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cell_empty"
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_weight="1"
+    android:background="@android:color/transparent"
+    android:contentDescription="@string/empty_cell_description" />

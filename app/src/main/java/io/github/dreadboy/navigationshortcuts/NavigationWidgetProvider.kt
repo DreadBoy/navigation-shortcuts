@@ -1,26 +1,36 @@
 package io.github.dreadboy.navigationshortcuts
 
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.util.SizeF
-import android.widget.RemoteViews
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
- * Pre-MVP widget: one cell with a hardcoded destination. Everything is rebuilt from constants
- * in [onUpdate], so nothing depends on in-memory state surviving process death.
+ * The navigation widget. Everything is rebuilt from the stored config on every update, so nothing depends on
+ * in-memory state surviving process death. A widget without a stored config (newly placed, or a 0.1.0 widget
+ * after the update) gets the default empty 1×4 grid and takes over pending destinations (decisions 3.3).
  */
 class NavigationWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        for (appWidgetId in appWidgetIds) {
-            if (BuildConfig.DEBUG) logOptions("onUpdate", appWidgetId, appWidgetManager.getAppWidgetOptions(appWidgetId))
-            appWidgetManager.updateAppWidget(appWidgetId, buildViews(context, appWidgetId))
+        if (BuildConfig.DEBUG) {
+            for (id in appWidgetIds) logOptions("onUpdate", id, appWidgetManager.getAppWidgetOptions(id))
+        }
+        goAsync { WidgetUpdater.update(context, appWidgetIds.toList()) }
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        goAsync {
+            WidgetStore(context).update { it.delete(appWidgetIds.toList()) }
+            RenderProbe.forget(context, appWidgetIds.toList())
         }
     }
 
@@ -48,30 +58,66 @@ class NavigationWidgetProvider : AppWidgetProvider() {
         )
     }
 
-    private fun buildViews(context: Context, appWidgetId: Int): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_destination)
-        views.setImageViewResource(R.id.cell_icon, R.drawable.ic_place_pin)
-        views.setTextViewText(R.id.cell_label, HardcodedDestination.LABEL)
-        views.setContentDescription(R.id.cell_root, context.getString(R.string.navigate_to, HardcodedDestination.LABEL))
-
-        val navigate = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse(NavigationUris.drivingNavigation(HardcodedDestination.QUERY)),
-        ).apply {
-            setPackage(NavigationUris.MAPS_PACKAGE)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            appWidgetId,
-            navigate,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        views.setOnClickPendingIntent(R.id.cell_root, pendingIntent)
-        return views
-    }
-
     private companion object {
         const val LOG_TAG = "NavShortWidget"
+    }
+}
+
+/**
+ * Receives the `requestPinAppWidget` success callback (the launcher fills in EXTRA_APPWIDGET_ID). The intent carries
+ * the shared entry itself, so the destination reaches the new widget even if the pending list was lost; adding is
+ * idempotent on the entry id, so it never duplicates what the widget's first update took from the pending list.
+ */
+class PinWidgetCallbackReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val widgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+        val entry = intent.getStringExtra(EXTRA_ENTRY_JSON)
+            ?.let { runCatching { WidgetStore.json.decodeFromString(Entry.serializer(), it) }.getOrNull() }
+        Log.i(TAG, "pin callback: widget=$widgetId entry=${entry?.label}")
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID || entry == null) return
+        goAsync {
+            WidgetStore(context).update { it.completePin(widgetId, entry) }
+            WidgetUpdater.update(context, listOf(widgetId))
+        }
+    }
+
+    companion object {
+        const val EXTRA_ENTRY_JSON = "io.github.dreadboy.navigationshortcuts.ENTRY_JSON"
+        private const val TAG = "NavShortPin"
+    }
+}
+
+/** Renders widgets from the store; also prunes configs of widgets that no longer exist. */
+object WidgetUpdater {
+    suspend fun update(context: Context, appWidgetIds: List<Int>? = null) {
+        val store = WidgetStore(context)
+        val bound = store.boundWidgetIds()
+        val ids = (appWidgetIds ?: bound).filter { it in bound }
+        // Niagara's "Replace widget" may not call onDeleted (decisions 1.4): prune against the bound IDs.
+        val before = store.read()
+        val state = store.update { it.prune(bound).let { s -> ids.fold(s) { acc, id -> acc.ensureConfig(id) } } }
+            ?: store.read()
+        RenderProbe.forget(context, before.configs.keys - bound.toSet())
+        val manager = AppWidgetManager.getInstance(context)
+        for (id in ids) {
+            val config = state.configs[id] ?: WidgetConfig()
+            manager.updateAppWidget(id, WidgetRenderer.render(context, id, config))
+        }
+    }
+}
+
+private val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+/** Runs [block] off the main thread while keeping the broadcast (and the process) alive until it is done. */
+fun BroadcastReceiver.goAsync(block: suspend () -> Unit) {
+    val pending = goAsync()
+    receiverScope.launch {
+        try {
+            block()
+        } catch (e: Exception) {
+            Log.e("NavShortWidget", "widget update failed", e)
+        } finally {
+            pending.finish()
+        }
     }
 }

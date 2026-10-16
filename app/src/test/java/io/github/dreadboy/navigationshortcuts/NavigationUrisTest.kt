@@ -5,10 +5,10 @@ import org.junit.Test
 
 class NavigationUrisTest {
     @Test
-    fun hardcodedDestinationUri() {
+    fun textDestinationUri() {
         assertEquals(
             "google.navigation:q=Maribor%2C%20Slovenija&mode=d",
-            NavigationUris.drivingNavigation(HardcodedDestination.QUERY),
+            NavigationUris.drivingNavigation("Maribor, Slovenija"),
         )
     }
 

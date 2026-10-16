@@ -1,34 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Filled cell: icon scaled to fit the space above the label (vectors stay sharp at any size). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/cell_root"
-    android:layout_width="match_parent"
+    android:layout_width="0dp"
     android:layout_height="match_parent"
+    android:layout_weight="1"
     android:background="@android:color/transparent"
-    android:contentDescription="@string/widget_preview_label"
     android:gravity="center"
     android:orientation="vertical"
-    android:padding="4dp">
+    android:padding="2dp">
 
-    <ImageView
-        android:id="@+id/cell_icon"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:importantForAccessibility="no"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_place_pin" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ImageView
+            android:id="@+id/cell_icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/cell_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
         android:ellipsize="end"
         android:maxLines="1"
         android:shadowColor="#CC000000"
         android:shadowDx="0"
         android:shadowDy="1"
         android:shadowRadius="3"
-        android:text="@string/widget_preview_label"
         android:textColor="@android:color/white"
         android:textSize="12sp" />
 </LinearLayout>

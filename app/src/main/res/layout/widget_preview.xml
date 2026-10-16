@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Picker preview only (Niagara renders it live): a 1×4 widget with three sample shortcuts and one empty cell.
+     Same structure as widget_cell, but without ids, so nothing here can be mistaken for a placed widget's cells. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UseCompoundDrawables"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:orientation="horizontal"
+    android:padding="2dp">
+
+    <LinearLayout style="@style/WidgetPreviewCell">
+        <ImageView style="@style/WidgetPreviewIcon" android:contentDescription="@null" android:src="@drawable/ic_icon_home" />
+        <TextView style="@style/WidgetPreviewLabel" android:text="@string/preview_home" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetPreviewCell">
+        <ImageView style="@style/WidgetPreviewIcon" android:contentDescription="@null" android:src="@drawable/ic_icon_work" />
+        <TextView style="@style/WidgetPreviewLabel" android:text="@string/preview_work" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetPreviewCell">
+        <ImageView style="@style/WidgetPreviewIcon" android:contentDescription="@null" android:src="@drawable/ic_icon_gym" />
+        <TextView style="@style/WidgetPreviewLabel" android:text="@string/preview_gym" />
+    </LinearLayout>
+
+    <FrameLayout style="@style/WidgetPreviewCell" />
+</LinearLayout>

@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="16dp">
+
+        <TextView
+            android:id="@+id/sheet_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/share_title"
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large" />
+
+        <LinearLayout
+            android:id="@+id/form"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/SheetFieldLabel"
+                android:text="@string/field_label" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/icon_button"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/icon_button_background"
+                    android:contentDescription="@string/change_icon"
+                    android:padding="10dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_place_pin" />
+
+                <EditText
+                    android:id="@+id/label_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:autofillHints=""
+                    android:hint="@string/label_hint"
+                    android:imeOptions="actionDone"
+                    android:inputType="textCapWords"
+                    android:maxLines="1" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/SheetFieldLabel"
+                android:text="@string/field_destination" />
+
+            <EditText
+                android:id="@+id/destination_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autofillHints=""
+                android:enabled="false"
+                android:hint="@string/destination_hint"
+                android:inputType="textPostalAddress|textMultiLine"
+                android:maxLines="3" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ProgressBar
+                    android:id="@+id/resolving_progress"
+                    style="@android:style/Widget.DeviceDefault.ProgressBar.Small"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/status_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/resolving"
+                    android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/widget_heading"
+                style="@style/SheetFieldLabel"
+                android:text="@string/field_widget"
+                android:visibility="gone" />
+
+            <!-- One row per widget (vertical, so no chip can hide off-screen); newest first (decisions 3.9). -->
+            <RadioGroup
+                android:id="@+id/widget_chips"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/widget_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small"
+                android:textColor="?android:attr/colorError"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/message_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/grid_tip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/grid_tall_tip"
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/grow_buttons"
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/add_column_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:textAllCaps="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/add_column" />
+
+            <Button
+                android:id="@+id/add_row_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:textAllCaps="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/add_row" />
+        </LinearLayout>
+
+        <LinearLayout
+            style="?android:attr/buttonBarStyle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/cancel_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:textAllCaps="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/cancel" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <!-- Way out when the chosen widget isn't visible (Niagara ghost IDs, decisions 3.9). -->
+            <Button
+                android:id="@+id/place_new_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/save_for_new_widget"
+                android:textAllCaps="false"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/add_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:textAllCaps="false"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:enabled="false"
+                android:text="@string/add" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

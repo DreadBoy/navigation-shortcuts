@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Resolving the shared maps.app.goo.gl link once at add time (decisions 1.5). -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <queries>
         <package android:name="com.google.android.apps.maps" />
@@ -21,6 +25,30 @@
             </intent-filter>
         </activity>
 
+        <!-- Share target: Google Maps → Share → "Add to navigation widget" (spec Flow 2). -->
+        <activity
+            android:name=".AddDestinationActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/share_target_label"
+            android:theme="@style/Theme.NavShort.BottomSheet">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- Empty widget cell → "share a place from Google Maps" tip. Own task, gone from recents. -->
+        <activity
+            android:name=".EmptyCellTipActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NavShort.Transparent" />
+
         <receiver
             android:name=".NavigationWidgetProvider"
             android:exported="true"
@@ -32,5 +60,18 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/navigation_widget_info" />
         </receiver>
+
+        <!-- Serves the widget's invisible 1 px probe image; the launcher loading it means "this widget is displayed"
+             (decisions 3.9). Exported because the launcher process reads it; it only ever returns a transparent pixel. -->
+        <provider
+            android:name=".RenderProbeProvider"
+            android:authorities="${applicationId}.renderprobe"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
+
+        <!-- requestPinAppWidget success callback (explicit PendingIntent from our own share sheet). -->
+        <receiver
+            android:name=".PinWidgetCallbackReceiver"
+            android:exported="false" />
     </application>
 </manifest>

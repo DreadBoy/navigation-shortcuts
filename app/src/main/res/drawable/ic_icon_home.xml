@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Built-in icon "home": Material Icons "home", Apache License 2.0.
+     White glyph with a dark translucent outline (same style as ic_place_pin), readable on any wallpaper. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#59000000"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10,20v-6h4v6h5v-8h3L12,3 2,12h3v8z" />
+</vector>

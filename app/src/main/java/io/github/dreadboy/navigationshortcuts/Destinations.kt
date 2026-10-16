@@ -1,11 +1,5 @@
 package io.github.dreadboy.navigationshortcuts
 
-/** Pre-MVP: the single destination shown by the widget, fixed at build time in app/build.gradle.kts. */
-object HardcodedDestination {
-    const val LABEL = BuildConfig.DESTINATION_LABEL
-    const val QUERY = BuildConfig.DESTINATION_QUERY
-}
-
 object NavigationUris {
     const val MAPS_PACKAGE = "com.google.android.apps.maps"
 

@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // Release signing: the keystore and its properties file live outside the repo.
@@ -18,9 +19,6 @@ val keystoreProperties = Properties().apply {
 }
 val releaseSigningAvailable = keystorePropertiesFile.isFile
 
-val destinationLabel = "Maribor"
-val destinationQuery = "Maribor, Slovenija"
-
 android {
     namespace = "io.github.dreadboy.navigationshortcuts"
     compileSdk = 36
@@ -29,21 +27,14 @@ android {
         applicationId = "io.github.dreadboy.navigationshortcuts"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // Pre-MVP hardcoded destination: single source for the Kotlin constants (BuildConfig)
-        // and the widget preview/initial label (string resource).
-        buildConfigField("String", "DESTINATION_LABEL", "\"$destinationLabel\"")
-        buildConfigField("String", "DESTINATION_QUERY", "\"$destinationQuery\"")
-        resValue("string", "widget_preview_label", destinationLabel)
     }
 
     buildFeatures {
         buildConfig = true
-        resValues = true
     }
 
     signingConfigs {
@@ -90,6 +81,10 @@ if (!releaseSigningAvailable) {
 }
 
 dependencies {
+    implementation(libs.datastore.preferences)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.android)
+
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.test.runner)

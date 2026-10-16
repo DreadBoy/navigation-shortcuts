@@ -60,11 +60,12 @@ class Niagara(private val d: E2eDevice) {
      */
     fun removeCustomWidgetIfPresent() {
         goHome()
-        val host = placedWidget() ?: return
+        // The slot itself, so a "Tap to restore" placeholder (widget of an uninstalled app) is removed too.
+        val slot = d.find(widgetSlot)?.findObject(res(E2e.NIAGARA, "container")) ?: return
         // In the slot under the clock Niagara intercepts the long-press even over our clickable cell.
         // (With "Replace clock with widget" enabled it does not and the press reaches the cell instead;
         // see decisions 1.3. The suite never enables that option.)
-        val c = host.visibleCenter
+        val c = slot.visibleCenter
         longPress(c.x, c.y)
         d.waitFor(menuItem.text("Remove"), what = "widget long-press menu item 'Remove'").click()
         d.waitFor(By.text("Do you want to remove this widget?"), what = "remove confirmation")
@@ -82,6 +83,46 @@ class Niagara(private val d: E2eDevice) {
         check(placedWidget() == null) { "A custom widget is already placed; remove it first" }
         openNiagaraWidgetSheet()
         d.waitFor(menuItem.text("Add Custom Widget"), what = "'Add Custom Widget'").click()
+        pickOurWidget()
+        if (d.ui.wait(Until.hasObject(By.text("Create Widget Stack?")), 1_000)) {
+            throw AssertionError("Niagara offered a widget stack (Pro): another custom widget is still placed")
+        }
+        d.waitGone(By.pkg(E2e.NIAGARA).text("Select a widget"), what = "widget picker")
+        d.waitFor(widgetSlot, E2e.LONG, "placed custom widget slot")
+    }
+
+    /**
+     * Verifier's Repro B (decisions 3.9): with our widget placed, long-press it → "Add Custom Widget" → our widget →
+     * "Create Widget Stack?" → "Replace widget". Niagara shows a new widget of ours and keeps the old ID bound (ghost).
+     */
+    fun replaceCustomWidgetWithNewOurs() {
+        goHome()
+        val slot = d.find(widgetSlot)?.findObject(res(E2e.NIAGARA, "container"))
+            ?: throw AssertionError("no custom widget to replace")
+        val c = slot.visibleCenter
+        longPress(c.x, c.y)
+        d.waitFor(menuItem.text("Add Custom Widget"), what = "widget menu 'Add Custom Widget'").click()
+        pickOurWidget()
+        d.waitFor(By.text("Create Widget Stack?"), E2e.LONG, "'Create Widget Stack?' (free tier)")
+        d.waitFor(By.pkg(E2e.NIAGARA).text("Replace widget"), what = "'Replace widget'").click()
+        d.waitGone(By.text("Create Widget Stack?"), E2e.LONG, "'Create Widget Stack?'")
+        d.waitFor(widgetSlot, E2e.LONG, "placed custom widget slot")
+    }
+
+    /**
+     * Widget IDs the system has bound to our provider, from `dumpsys appwidget`. Includes Niagara "ghosts" left by
+     * "Replace widget", which only uninstalling the app clears (decisions 3.9).
+     */
+    fun boundWidgetIdsOfOurApp(): List<Int> {
+        val widgets = d.shell("dumpsys appwidget").substringAfter("Widgets:", "").substringBefore("Hosts:")
+        return widgets.split(Regex("""\n\s+\[\d+] """)).mapNotNull { block ->
+            val id = Regex("""^id=(\d+)""").find(block.trim())?.groupValues?.get(1)?.toInt()
+            id?.takeIf { block.contains("cmp:ComponentInfo{${E2e.APP}/") }
+        }
+    }
+
+    /** In Niagara's widget picker: scroll to our app, expand it and tap our widget's preview card. */
+    private fun pickOurWidget() {
         // Title is a large header first and moves into the toolbar once the list scrolls.
         d.waitFor(By.pkg(E2e.NIAGARA).text("Select a widget"), what = "widget picker")
 
@@ -108,12 +149,6 @@ class Niagara(private val d: E2eDevice) {
             description = d.ui.wait(Until.findObject(By.text(E2e.WIDGET_DESCRIPTION)), E2e.SHORT)
         }
         (description ?: d.waitFor(By.text(E2e.WIDGET_DESCRIPTION), what = "our widget's preview card")).click()
-
-        if (d.ui.wait(Until.hasObject(By.text("Create Widget Stack?")), 1_000)) {
-            throw AssertionError("Niagara offered a widget stack (Pro): another custom widget is still placed")
-        }
-        d.waitGone(By.pkg(E2e.NIAGARA).text("Select a widget"), what = "widget picker")
-        d.waitFor(widgetSlot, E2e.LONG, "placed custom widget slot")
     }
 
     /** Finds our widget's cell by its visible label on the home screen. */
@@ -123,6 +158,47 @@ class Niagara(private val d: E2eDevice) {
             E2e.LONG,
             "widget cell labelled '$label' on Niagara home",
         )
+
+    /** Labels of our widget's filled cells, in reading order (left→right, top→bottom). */
+    fun cellLabels(): List<String> =
+        d.ui.findObjects(By.pkg(E2e.APP).res(E2e.APP, "cell_label"))
+            .sortedWith(compareBy({ it.visibleBounds.top }, { it.visibleBounds.left }))
+            .map { it.text }
+
+    /** Our widget's empty cells (transparent, tappable), in reading order. */
+    fun emptyCells(): List<UiObject2> =
+        d.ui.findObjects(By.pkg(E2e.APP).res(E2e.APP, "cell_empty"))
+            .sortedWith(compareBy({ it.visibleBounds.top }, { it.visibleBounds.left }))
+
+    /**
+     * Waits until our widget shows exactly [labels] as filled cells and [empty] empty cells (the widget re-renders
+     * asynchronously after an update).
+     */
+    fun assertWidgetCells(labels: List<String>, empty: Int) {
+        val deadline = System.currentTimeMillis() + E2e.LONG
+        while (true) {
+            goHome()
+            val shown = cellLabels()
+            val emptyShown = emptyCells().size
+            if (shown == labels && emptyShown == empty) return
+            if (System.currentTimeMillis() > deadline) {
+                throw AssertionError("Widget shows cells $shown + $emptyShown empty, expected $labels + $empty empty")
+            }
+            SystemClock.sleep(500)
+        }
+    }
+
+    /**
+     * Niagara's requestPinAppWidget confirmation ("Add to home screen", our app name, Okay / Cancel; decisions 3.2).
+     * Taps [confirm] ? "Okay" : "Cancel".
+     */
+    fun answerPinRequest(confirm: Boolean) {
+        d.waitFor(By.pkg(E2e.NIAGARA).text("Add to home screen"), E2e.LONG, "Niagara's 'Add to home screen' pin sheet")
+        d.waitFor(By.pkg(E2e.NIAGARA).text(E2e.APP_LABEL), what = "our widget in the pin sheet")
+        val button = if (confirm) res(E2e.NIAGARA, "button_positive").text("Okay") else res(E2e.NIAGARA, "button_negative").text("Cancel")
+        d.waitFor(button, what = "pin sheet button").click()
+        d.waitGone(By.pkg(E2e.NIAGARA).text("Add to home screen"), what = "Niagara's pin sheet")
+    }
 
     private fun openNiagaraWidgetSheet() {
         // The clock is the documented entry; the date line opens the same "Niagara widget" sheet and is

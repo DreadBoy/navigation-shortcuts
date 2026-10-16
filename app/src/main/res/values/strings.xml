@@ -3,5 +3,61 @@
     <string name="app_name">Navigation Shortcuts</string>
     <string name="widget_description">Tap a destination to start Google Maps driving navigation</string>
     <string name="navigate_to">Navigate to %1$s</string>
-    <string name="main_instructions">Long-press your home screen, open Widgets and add the \"Navigation Shortcuts\" widget.</string>
+    <string name="main_instructions">Long-press your home screen, open Widgets and add the \"Navigation Shortcuts\" widget.\n\nThen open a place in Google Maps, tap Share and pick \"Add to navigation widget\".</string>
+
+    <!-- Widget -->
+    <string name="empty_cell_description">Empty shortcut slot</string>
+    <string name="preview_home">Home</string>
+    <string name="preview_work">Work</string>
+    <string name="preview_gym">Gym</string>
+
+    <!-- Empty-cell tip -->
+    <string name="tip_title">Empty slot</string>
+    <string name="tip_message">Share a place from Google Maps to add it here.</string>
+    <string name="tip_open_maps">Open Google Maps</string>
+    <string name="ok">OK</string>
+
+    <!-- Share sheet -->
+    <string name="share_target_label">Add to navigation widget</string>
+    <string name="share_title">Add to navigation widget</string>
+    <string name="field_label">Label</string>
+    <string name="field_destination">Destination</string>
+    <string name="field_widget">Widget</string>
+    <string name="resolving">Looking up the place…</string>
+    <string name="resolved_coordinates">Exact coordinates from the Google Maps link</string>
+    <string name="resolved_text">Address from the Google Maps link</string>
+    <string name="destination_hint">Address or lat,lng</string>
+    <string name="label_hint">Short name</string>
+    <string name="add">Add</string>
+    <string name="cancel">Cancel</string>
+    <string name="change_icon">Change icon</string>
+    <string name="pick_icon">Pick an icon</string>
+    <string name="empty_widget">Empty widget</string>
+    <string name="grid_full">This widget is full (%1$d×%2$d). Make room:</string>
+    <string name="grid_full_max">This widget is full and already at the maximum size (6×6).</string>
+    <string name="add_column">+1 column</string>
+    <string name="add_row">+1 row</string>
+    <string name="no_widget">No navigation widget on your home screen yet.</string>
+    <string name="place_new_widget">Place new widget</string>
+    <string name="save_for_new_widget">Save for a new widget</string>
+    <string name="saved_for_new_widget">Saved. Add another \"Navigation Shortcuts\" widget in Niagara (long-press a widget or the clock → Add Custom Widget); this place will be in it.</string>
+    <string name="save_for_later">Save for later</string>
+    <string name="pin_requested">Confirm adding the widget. If you cancel, the place stays saved and appears in the next navigation widget you add.</string>
+    <string name="saved_pending">Saved. Add the \"Navigation Shortcuts\" widget to your home screen (long-press the clock → Add Custom Widget in Niagara); this place will be in it.</string>
+    <string name="nothing_shared">Nothing to add: share a place from Google Maps.</string>
+    <string name="added_to">Added to %1$s</string>
+    <string name="chip_newest">newest</string>
+    <string name="chip_older">older</string>
+    <string name="chip_not_seen">not seen on home screen</string>
+    <string name="not_seen_hint">This widget hasn\'t appeared on your home screen since %1$s. If you can\'t find it there, tap \"Save for a new widget\".</string>
+    <string name="grid_tall_tip">With 3 or more rows, make the widget taller: long-press it in Niagara → Move and resize.</string>
+
+    <!-- Link resolution failures (decisions 3.5) -->
+    <string name="failed_no_internet">No internet connection — type the address or try again.</string>
+    <string name="failed_network">Google Maps didn\'t answer — type the address or try again.</string>
+    <string name="failed_not_live">The shared link isn\'t ready yet — share the place again or type the address.</string>
+    <string name="failed_cid">Google Maps shared a link without the address — share the place again or type the address.</string>
+    <string name="failed_not_maps">This isn\'t a Google Maps place link — type the address.</string>
+    <string name="failed_unexpected">Couldn\'t read this Google Maps link — type the address or share the place again.</string>
+    <string name="failed_name_used">%1$s The shared name is used as the destination; edit it if needed.</string>
 </resources>

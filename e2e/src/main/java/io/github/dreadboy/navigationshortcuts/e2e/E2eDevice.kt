@@ -21,8 +21,17 @@ object E2e {
     /** Widget description shown under the preview in Niagara's picker (widget_description). */
     const val WIDGET_DESCRIPTION = "Tap a destination to start Google Maps driving navigation"
 
-    /** Pre-MVP hardcoded destination label (destinationLabel in app/build.gradle.kts). */
-    const val PRE_MVP_LABEL = "Maribor"
+    /** Share-sheet label of our share target (share_target_label). */
+    const val SHARE_TARGET = "Add to navigation widget"
+
+    /** Content description of an empty widget cell (empty_cell_description). */
+    const val EMPTY_CELL = "Empty shortcut slot"
+
+    /** Empty-cell tip text (tip_message). */
+    const val TIP_MESSAGE = "Share a place from Google Maps to add it here."
+
+    /** Cells of a newly placed widget (default 1×4 grid). */
+    const val DEFAULT_CELLS = 4
 
     const val SHORT = 5_000L
     const val LONG = 20_000L
