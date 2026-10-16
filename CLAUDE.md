@@ -24,6 +24,7 @@ Project files:
 ## Verification
 - Only an end-to-end check done as a real user would counts: real launcher (Niagara) on the emulator, real widget placement, real Google Maps, real taps. Nothing mocked on the user path. Unit and integration tests are a means, not the verification.
 - Verifiers write their own scenarios and do exploratory testing, not just re-run the implementer's tests.
+- Every feature also gets a whole-system exploratory pass, as a user would see it: does it fit with Niagara (look, size, colours, behaviour next to Niagara's own icons and menus)? Looking at the entire screen, does it make sense? Does every control visibly do something? What could be better? Findings come back as bugs and improvement suggestions.
 - Long verify loops are worth it while they find real bugs, especially data loss or corruption. Quality over speed — don't rush or cut corners.
 - But cap them: after a few rounds (about 3), triage. Only silent data loss, invalid/corrupt output or a broken release blocks; a blocker gets a targeted fix plus re-test, not another full round. Everything else goes to the backlog with repro and severity. Rare narrow-timing races don't have to be fixed in the current version; common-path data loss always does.
 - Watch for the 20-80 long tail: when a step turns into an open-ended edge-case hunt, say so and propose the simple MVP version or a stopping point.
@@ -39,6 +40,7 @@ Project files:
 ## Talking with the user
 - A surprised question about runtime ("still working on that?", "are you stuck?") is curiosity, not impatience. Answer it honestly, including own coordination mistakes; don't cut scope or quality because of it.
 - "Just talking" / "no need to change" means discuss only. Don't add scope the user didn't ask for.
+- Keep reports short. When handing over a build, give the number of known small bugs, not a list.
 - On "what's the status": done, in progress, blocked and why — with evidence (test counts, commits). Correct the user's wrong assumptions instead of agreeing.
 - End a phase by asking before starting the next one; the next version starts only on explicit go-ahead.
 
