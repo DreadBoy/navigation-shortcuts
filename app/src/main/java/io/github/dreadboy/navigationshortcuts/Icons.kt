@@ -124,7 +124,6 @@ object IconGuess {
     /** Whole words (after [normalize]) → concept. */
     private val words: Map<String, String> = buildMap {
         fun add(concept: String, vararg ws: String) = ws.forEach { put(it, concept) }
-        add("home", "home", "dom", "doma", "domov")
         add("work", "work", "office", "sluzba", "pisarna", "podjetje", "doo")
         add("gym", "gym", "fitness", "fitnes", "fitnesa", "sport", "sporta", "sportu")
         add("stadium", "stadium", "stadion", "stadiona", "stadionu", "stadionom")
@@ -157,6 +156,24 @@ object IconGuess {
         "parkirisc" to "parking", "parking" to "parking",
     )
 
+    /**
+     * Home only when the whole text is one of these: "dom" is part of many place names that aren't anyone's home
+     * (Cankarjev dom, Kulturni dom, Gasilski dom, Študentski dom, Dom starejših občanov, Triglavski dom).
+     */
+    private val homeOnly = setOf("home", "dom", "doma", "domov")
+
+    /**
+     * Words after which a keyword is a street name, not the place (Gimnazijska cesta, Športna ulica, Pot na Goro):
+     * the keyword is ignored when followed by one of these, or by "na" + keyword after one of these.
+     */
+    private val streetWords = setOf(
+        "ulica", "ulici", "ulico", "ul", "cesta", "cesti", "cesto", "c", "pot", "poti", "trg", "trgu", "nabrezje",
+        "nabrezju", "drevored", "park", "parku", "naselje", "naselju",
+    )
+
+    /** Remainder after a stem that makes it an adjective ("gimnazij|ska", "fakultet|na", "bolnisnic|na"). */
+    private val adjectiveRest = Regex("^i?(sk|n|cn)\\w*$")
+
     /** Two-word phrases (first stem, second stem) → concept; checked before single words ("zdravstveni dom" ≠ home). */
     private val phrases: List<Triple<String, String, String>> = listOf(
         Triple("zdravstven", "dom", "hospital"),
@@ -173,17 +190,24 @@ object IconGuess {
     fun concept(label: String, destination: String = ""): String =
         conceptIn(label) ?: conceptIn(destination) ?: BuiltInIcons.PIN
 
-    private fun conceptIn(text: String): String? {
+    private fun tokens(text: String): List<String> =
         // "d.o.o." splits into d, o, o: join it back into one word first.
-        val tokens = normalize(text).replace(Regex("\\bd\\.\\s*o\\.\\s*o\\b\\.?"), " doo ")
+        normalize(text).replace(Regex("\\bd\\.\\s*o\\.\\s*o\\b\\.?"), " doo ")
             .split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+
+    private fun conceptIn(text: String): String? {
+        val tokens = tokens(text)
+        if (tokens.size == 1 && tokens[0] in homeOnly) return "home"
         for ((i, token) in tokens.withIndex()) {
             val next = tokens.getOrNull(i + 1)
+            if (next in streetWords) continue
+            if (i >= 2 && tokens[i - 1] == "na" && tokens[i - 2] in streetWords) continue
             if (next != null) {
                 phrases.firstOrNull { (a, b) -> token.startsWith(a) && next.startsWith(b) }?.let { return it.third }
             }
             words[token]?.let { return it }
-            stems.firstOrNull { token.startsWith(it.first) }?.let { return it.second }
+            stems.firstOrNull { (stem, _) -> token.startsWith(stem) && !adjectiveRest.matches(token.removePrefix(stem)) }
+                ?.let { return it.second }
         }
         return null
     }

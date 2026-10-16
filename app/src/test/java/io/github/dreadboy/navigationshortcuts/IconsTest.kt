@@ -112,6 +112,40 @@ class IconsTest {
     }
 
     @Test
+    fun domIsHomeOnlyAsTheWholeText() {
+        for (text in listOf("Dom", "DOMA", "domov", "Home", " dom ")) assertEquals(text, "home", IconGuess.concept(text))
+        for (text in listOf(
+            "Cankarjev dom", "Kulturni dom Franca Bernika", "Gasilski dom Vič", "Narodni dom Maribor",
+            "Študentski dom Rožna dolina", "Dom starejših občanov Bežigrad", "Triglavski dom na Kredarici",
+            "Home Center Ljubljana",
+        )) {
+            assertEquals(text, "pin", IconGuess.concept(text, text))
+        }
+        assertEquals("mountain", IconGuess.concept("Planinski dom Kamniška Bistrica"))
+        assertEquals("hospital", IconGuess.concept("Zdravstveni dom Bežigrad"))
+        // Not home from the address either.
+        assertEquals("pin", IconGuess.concept("Koncert", "Cankarjev dom, Prešernova cesta 10, Ljubljana"))
+    }
+
+    @Test
+    fun streetNamesDoNotTriggerKeywords() {
+        val pins = listOf(
+            "Gimnazijska cesta 3, Trbovlje", "Športna ulica 22, Ljubljana", "Gostilniška ulica 1",
+            "Bolnišnična ulica 5", "Fakultetna ulica 4", "Trgovinska ulica 7", "Pot na Goro 9, Ljubljana",
+            "Gimnazijska 12", "Fakultetna 1", "Bolnišnična 3", "Gostilniška 2", "Trgovinska 8",
+            "Športni park 4", "Stadionska c. 2", "Kopališki trg 1", "Bazenska pot 3", "Cesta na Hrib 5",
+            "Hribarjeva ul. 3", "Letališka cesta 16", "Šolska ulica 5",
+        )
+        for (text in pins) assertEquals(text, "pin", IconGuess.concept(text, text))
+        // The place itself still matches, also with a street in the same address.
+        assertEquals("gym", IconGuess.concept("Športno društvo studenci Maribor", "Na Poljanah 20, 2000 Maribor"))
+        assertEquals("school", IconGuess.concept("Gimnazija Bežigrad", "Peričeva ulica 4, Ljubljana"))
+        assertEquals("school", IconGuess.concept("Fakulteta za šport", "Gortanova ulica 22"))
+        assertEquals("hospital", IconGuess.concept("x", "Splošna bolnišnica, Ljubljanska ulica 5, Maribor"))
+        assertEquals("mountain", IconGuess.concept("Na goro"))
+    }
+
+    @Test
     fun noFalsePositivesOnCommonNames() {
         assertEquals("pin", guess("Domžale")) // "dom" only as a whole word
         assertEquals("pin", guess("Ljubljana Castle"))
