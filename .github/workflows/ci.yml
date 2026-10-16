@@ -64,6 +64,8 @@ jobs:
       NIAGARA_SHA256: "639d0578eb50b9b2d79937360b0ff65145760022fe1273053b4338a7103e84f3"
       # Overall limit for run-e2e.sh's Gradle part (build/install + both test passes), seconds.
       E2E_TIMEOUT: "2700"
+      # setup-emulator.sh retry counts x3: first cold boot with a software GPU is much slower than the local AVD.
+      SETUP_LOOP_SCALE: "3"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -105,7 +107,9 @@ jobs:
           # system-images;android-36;google_apis_playstore;x86_64: Google Play image, ships Google Maps.
           target: google_apis_playstore
           arch: x86_64
-          profile: pixel_8
+          # pixel_8 is unknown to the runner image's cmdline-tools 12.0; pixel_7 has the same screen as the local
+          # pixel_8 AVD (1080x2400, 420 dpi density bucket), which setup-emulator.sh's fixed coordinates rely on.
+          profile: pixel_7
           cores: 3
           ram-size: 4096M
           heap-size: 228M

@@ -6,6 +6,8 @@
 #
 # Usage: setup-emulator.sh [-s SERIAL] [path/to/niagara.apk]
 # Env:   ADB (default $ANDROID_HOME/platform-tools/adb), GEO_LNG/GEO_LAT (default 14.5058 / 46.0569)
+#        SETUP_LOOP_SCALE  multiplies the retry counts of the Niagara onboarding, clock long-press and Maps navigation loops
+#                          (default 1; CI uses 3 for the slow software-GPU emulator)
 # Exit:  0 = ready, non-zero = a step failed (message on stderr).
 # Measured on: API 36 google_apis_playstore arm64 (r07), Pixel 8 profile, Niagara 1.16.33,
 #              Google Maps 25.11.01 (preinstalled, signed out).
@@ -16,6 +18,7 @@ APK="${1:-$(cd "$(dirname "$0")" && pwd)/../../vendor/niagara.apk}"
 [ -f "$APK" ] || APK="$(cd "$(dirname "$0")/.." && pwd)/vendor/niagara.apk"
 ADB="${ADB:-${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}/platform-tools/adb}"
 GEO_LNG="${GEO_LNG:-14.5058}"; GEO_LAT="${GEO_LAT:-46.0569}"
+SCALE="${SETUP_LOOP_SCALE:-1}"
 NIAGARA=bitpit.launcher
 NIAGARA_HOME=bitpit.launcher/.ui.HomeActivity
 MAPS=com.google.android.apps.maps
@@ -74,7 +77,7 @@ resolved=$(a shell cmd package resolve-activity --brief -a android.intent.action
 log "default home: $resolved"
 
 a shell input keyevent KEYCODE_HOME; sleep 2
-for i in $(seq 1 15); do
+for i in $(seq 1 $((15 * SCALE))); do
   x=$(dump)
   if tap_if "$x" 'com.android.systemui:id/ok' 'system cling Got it'; then sleep 2; continue; fi
   if tap_if "$x" '^bitpit.launcher:id/button_positive$' 'Agree & Continue'; then sleep 3; continue; fi
@@ -102,7 +105,7 @@ grep -q 'resource-id="bitpit.launcher:id/toolbar_text"' <<<"$(dump)" && { a shel
 # Verify the widget entry point works: long-press clock -> "Niagara widget" sheet with "Add Custom Widget".
 c=$(find_center "$(dump)" '^bitpit.launcher:id/clock$'); [ -n "$c" ] || die "clock not found"
 ok=0
-for i in 1 2 3; do
+for i in $(seq 1 $((3 * SCALE))); do
   a shell input swipe $c $c 1500; sleep 1.5
   if grep -q 'text="Add Custom Widget"' <<<"$(dump)"; then ok=1; break; fi
   a shell input keyevent KEYCODE_BACK; sleep 1
@@ -124,7 +127,7 @@ a shell am force-stop "$MAPS"
 t0=$(date +%s)
 a shell am start -a android.intent.action.VIEW -d "google.navigation:q=Maribor%2C%20Slovenija\&mode=d" -p "$MAPS" >/dev/null
 ok=0
-for i in $(seq 1 30); do
+for i in $(seq 1 $((30 * SCALE))); do
   a emu geo fix "$GEO_LNG" "$GEO_LAT" >/dev/null
   if maps_nav_visible; then ok=1; break; fi
   x=$(dump)
