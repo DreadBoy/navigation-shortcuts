@@ -60,7 +60,7 @@ object NiagaraGlyphs {
         "stadium" to "cat_soccer_game",
         "pool" to "act_jellyfish",
         "parking" to "cat_cars",
-        "mountain" to "act_sun_horizon",
+        "mountain" to "cat_travel",
     )
 
     /**

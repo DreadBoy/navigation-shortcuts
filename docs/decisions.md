@@ -296,7 +296,7 @@ User report on the Pixel (0.3.0, Niagara installed): the picker listed Niagara g
   | hospital | `cat_health` | |
   | airport | `cat_air_travel` | |
   | parking | `cat_cars` | no parking glyph; car |
-  | mountain | `act_sun_horizon` | no mountain glyph; sun over a horizon (landscape) |
+  | mountain | `cat_travel` | no mountain glyph; backpack (v0.3.1 round 2, was `act_sun_horizon`) |
 
   Glyphs are distinct, so the reverse mapping (Niagara glyph → Material when Niagara is missing) stays unambiguous.
 - **Stored `builtin` refs (0.2.0 data, or picked while Niagara was missing) are mapped at render time**, not migrated: drawn as the glyph above while Niagara is readable, as their own Material icon otherwise. Render-time mapping keeps the stored data as the user (or 0.2.0) wrote it, needs no migration code or version flag, and still does the right thing when Niagara comes and goes. The picker highlights the mapped glyph for such an entry.
