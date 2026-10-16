@@ -22,17 +22,17 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 ### Phase 1 — Test harness and fact-finding (all [M], can run in parallel)
 - [x] 1.1 Niagara APK: find the package name, download from a public mirror into `vendor/niagara.apk` (git-ignored). If the download is blocked, ask the user to drop it in `vendor/`. — v1.16.33 from the developer's GitHub release, sha256 pinned; confirmed by a second agent. See decisions 1.1.
 - [x] 1.2 Emulator image: Pixel profile, Google Play system image. Is Google Maps preinstalled, and does `google.navigation:q=…&mode=d` reach navigation without sign-in? Which first-run dialogs appear and how to dismiss them reliably; mock location so routes exist. — API 36 Play image; Maps preinstalled, navigation works signed out; dialogs and assertion IDs confirmed by a second agent. See decisions 1.2.
-- [~] 1.3 Niagara on the emulator: sideload, `cmd package set-home-activity`, dismiss onboarding. Record UI Automator selectors for: home, long-press menu, widget picker, finding our widget, placing into the widget stack below a notes widget, swiping the stack, widget long-press menu.
-- [~] 1.4 Niagara capabilities: (a) long-press "Reconfigure" (`widgetFeatures="reconfigurable"`)? (b) honours `requestPinAppWidget`? (c) launches the config activity on placement? (d) can a widget be placed with **no** config activity? Decide which entry points v1 keeps.
+- [x] 1.3 Niagara on the emulator: sideload, `cmd package set-home-activity`, dismiss onboarding. Record UI Automator selectors for: home, long-press menu, widget picker, finding our widget, placing into the widget stack below a notes widget, swiping the stack, widget long-press menu. — Selectors in decisions 1.3, exercised by the E2E suite; stacks and pop-up widgets confirmed Pro-only with our app.
+- [x] 1.4 Niagara capabilities: (a) long-press "Reconfigure" (`widgetFeatures="reconfigurable"`)? (b) honours `requestPinAppWidget`? (c) launches the config activity on placement? (d) can a widget be placed with **no** config activity? Decide which entry points v1 keeps. — (a)(c)(d) yes, (b) declared, to test in Phase 3; size options unreliable (grid must not depend on them). See decisions 1.4.
 - [x] 1.5 Google Maps share: capture what Maps shares on the emulator (text format, short-link host) and where the short link redirects (`/@lat,lng,`, `!3d…!4d…`). Collect ~10 samples (address, business, POI, dropped pin) as test fixtures. — 12 fixtures in `app/src/test/resources/`; Mac-side resolution confirmed by a second agent, on-device capture re-check pending. See decisions 1.5.
 - [x] 1.6 Niagara APK internals (apktool): Anycons in the APK or downloaded after Pro? Readable or obfuscated? Sticker = static asset or base vector + runtime parameters? Decide icon path (expected: own Sticker-style set). — Decided option 2 (own set); fresh verifier confirmed 7/8 claims, the 8th corrected; see decisions 1.6.
 - [ ] 1.7 CI feasibility: GitHub Actions Linux runner with KVM, headless emulator, boot time, suite runtime. **Open problem:** CI needs the Niagara APK but it must not be committed — mirror download pinned to a version, cache, or private storage. Decide.
-- [ ] 1.8 [B] UI Automator 2.3+ test module with helpers: launcher setup, place widget, find cell by label, wait for Maps navigation foreground, force-stop app. Proven by a smoke test placing a stub widget on Niagara's home screen.
+- [x] 1.8 [B] UI Automator 2.3+ test module with helpers: launcher setup, place widget, find cell by label, wait for Maps navigation foreground, force-stop app. Proven by a smoke test placing a stub widget on Niagara's home screen. — Separate `:e2e` test module + `e2e/run-e2e.sh`; final fresh verifier: 3/3 runs green (74–80 s). See decisions 1.8.
 
 ### Phase 2 — Pre-MVP: hardcoded widget on the user's phone
 - [x] 2.1 [B] Widget with one hardcoded destination (built-in icon + label), no config activity; tap → `google.navigation:q=<dest>&mode=d` with the Maps package set. Destination is a build-time constant. — Verified from the APK: receiver + provider info, intent `google.navigation:q=Maribor%2C%20Slovenija&mode=d` to Maps package, URI encoder matches AOSP on 200k random strings. On-device check is 2.2.
-- [ ] 2.2 [B] E2E on Niagara: place widget, tap, Maps navigation in foreground; repeat after `am force-stop`.
-- [ ] 2.3 [B] Signed release APK built locally (key from 0.5), handed to the user with sideload steps.
+- [x] 2.2 [B] E2E on Niagara: place widget, tap, Maps navigation in foreground; repeat after `am force-stop`. — 3 tests (tap→navigation, Maps force-stop, app kill/force-stop) green 3× in a row by a fresh verifier, and against the release APK. On API 36 a force-stopped app's widget is masked by the system: first tap unmasks, second navigates (platform behaviour, accepted).
+- [x] 2.3 [B] Signed release APK built locally (key from 0.5), handed to the user with sideload steps. — `dist/navigation-shortcuts-0.1.0.apk`, sha256 `f2b2ab6a…909d49`, CN=Matic Leva (cert `3adccc33…2013d`); in-place `install -r` keeps the placed widget working.
 - [ ] 2.4 [U] User sideloads on the Pixel 10, places it in the Niagara widget stack, tries it (ideally in the car), reports anything off → backlog.
 
 ### Phase 3 — MVP: add shortcuts via the share sheet (the only add path)
@@ -69,8 +69,9 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 ---
 
 ### Open user decisions
-- **Widget stacks are Niagara Pro-only.** The free-tier emulator can't build a stack, so the stack parts of scenarios 1 and 6 can't run in E2E. Recommendation: E2E uses our widget as the single custom widget; the stack swipe is checked by the user on the Pixel 10. Alternatives: Pro on the emulator (licence on a test account) or a test licence from the Niagara developer.
-- **Disk:** ~4 GB free; E2E needs headroom. Largest regenerable items not created by this project: `~/.gradle/caches/9.5.0` (5.4 GB), `~/.gradle/caches/8.11.1` (1.3 GB), system image `android-34/google_apis` (4.2 GB). Not touched without the user's go-ahead.
+- **Spec scenario 5 wording:** on API 36, after `am force-stop` the widget is masked by the system until the first tap; the suite asserts this. Proposed spec update: scenario 5 uses process death (`am kill`) for "tap still launches Maps", and force-stop is "first tap restores the widget, second navigates".
+- **Widget stacks are Niagara Pro-only** (confirmed with our app; pop-up widgets too). The free-tier emulator can't build a stack, so the stack parts of scenarios 1 and 6 can't run in E2E. Recommendation: E2E uses our widget as the single custom widget; the stack swipe is checked by the user on the Pixel 10. Alternatives: Pro on the emulator (licence on a test account) or a test licence from the Niagara developer.
+- **Disk:** ~9.5 GB free after blocking Play Store self-updates in the AVD; E2E fits, but headroom is thin. Largest regenerable items not created by this project: `~/.gradle/caches/9.5.0` (5.4 GB), `~/.gradle/caches/8.11.1` (1.3 GB), system image `android-34/google_apis` (4.2 GB). Not touched without the user's go-ahead.
 
 ## v2 (do not start without explicit go-ahead)
 - Backup & restore: single global destination list in app preferences with Auto Backup; every widget renders that list (removes the "which widget?" step and the widget list in Flow 3). Pull forward if the chooser proves annoying.
@@ -85,4 +86,11 @@ _(issues found during verification, with repro and severity)_
 - [low] Widget info has `previewLayout` only, no `previewImage` fallback — check how Niagara's picker shows it (1.3/2.2).
 - [medium] Maps missing/disabled → tap does nothing, no message. Add a fallback toast or `geo:` intent.
 - [low] A second tap on the widget during active navigation shows Maps' "Exit navigation?" dialog; ignored unless the user confirms within ~5 s.
+- [low] Google Maps sometimes ignores a navigation intent on cold start (2–5%, reproducible without our app: 1/20 via plain `am start`). Watch on the phone in 2.4.
+- [low/medium] After uninstall + reinstall of our app while Niagara runs, a newly placed widget shows "Problem loading widget" (stale provider cache in Niagara); `am force-stop bitpit.launcher` fixes it. `run-e2e.sh` should force-stop Niagara after installing.
+- [medium] With Niagara's "Replace clock with widget" on, long-pressing our widget starts navigation instead of opening Niagara's menu.
+- [idea] Per-destination app shortcuts could appear in Niagara's free pop-ups — a free way around the one-widget limit. Untested.
+- [low] apksigner shows v2=false with minSdk 31 (v3 present); confirm intended.
+- [low] No overall timeout on the Gradle/instrumentation step in `run-e2e.sh` (CI could hang).
+- [low] `:app` androidTest dependencies are unused since tests live in `:e2e`.
 - [low] CI keystore reconstruction from secrets is documented but not implemented (7.1).
