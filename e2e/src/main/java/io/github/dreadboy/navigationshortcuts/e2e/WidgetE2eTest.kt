@@ -201,6 +201,9 @@ class WidgetE2eTest {
         shareCurrentPlace()
         assertTrue("no-widget message: '${sheet.message()}'", sheet.message().startsWith("No navigation widget"))
         assertEquals("only '+ Create new widget', preselected", listOf(ShareSheet.CREATE_NEW to true), sheet.chooser())
+        val message = d.waitFor(By.res(E2e.APP, "widget_step_message"), what = "no-widget message")
+        val list = d.waitFor(By.res(E2e.APP, "widget_chips"), what = "widget list")
+        assertTrue("no-widget message above the list", message.visibleBounds.bottom <= list.visibleBounds.top)
         sheet.tapPrimary("Add")
 
         niagara.answerPinRequest(confirm = true)

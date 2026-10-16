@@ -53,6 +53,7 @@ class AddDestinationActivity : Activity() {
     private lateinit var gridTip: View
     private lateinit var cancelButton: Button
     private lateinit var widgetStep: View
+    private lateinit var widgetStepMessage: View
     private lateinit var chips: RadioGroup
     private lateinit var messageText: TextView
     private lateinit var growButtons: View
@@ -111,6 +112,7 @@ class AddDestinationActivity : Activity() {
         gridTip = findViewById(R.id.grid_tip)
         cancelButton = findViewById(R.id.cancel_button)
         widgetStep = findViewById(R.id.widget_step)
+        widgetStepMessage = findViewById(R.id.widget_step_message)
         chips = findViewById(R.id.widget_chips)
         messageText = findViewById(R.id.message_text)
         growButtons = findViewById(R.id.grow_buttons)
@@ -340,6 +342,8 @@ class AddDestinationActivity : Activity() {
             updateButtons()
             return
         }
+        val noWidget = mode == Mode.CREATE_NEW && widgetsLoaded && widgetIds.isEmpty()
+        widgetStepMessage.visibility = if (noWidget) View.VISIBLE else View.GONE
         val since = id?.let { notSeen[it] }
         widgetHint.visibility = if (since != null) View.VISIBLE else View.GONE
         if (since != null) {
@@ -367,8 +371,9 @@ class AddDestinationActivity : Activity() {
                 addButton.visibility = View.GONE
             }
             Mode.CREATE_NEW -> {
-                messageText.visibility = View.VISIBLE
-                messageText.setText(if (widgetIds.isEmpty()) R.string.no_widget else R.string.create_new_hint)
+                // No widget yet: the message is above the list (widget_step_message) instead.
+                messageText.visibility = if (noWidget) View.GONE else View.VISIBLE
+                messageText.setText(R.string.create_new_hint)
                 growButtons.visibility = View.GONE
                 addButton.visibility = View.VISIBLE
                 addButton.setText(R.string.add)

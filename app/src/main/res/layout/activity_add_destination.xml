@@ -103,6 +103,16 @@
             android:orientation="vertical"
             android:visibility="gone">
 
+            <!-- "No navigation widget yet" sits above the list (its only row is "+ Create new widget"). -->
+            <TextView
+                android:id="@+id/widget_step_message"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/no_widget"
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium"
+                android:visibility="gone" />
+
             <TextView
                 android:id="@+id/widget_heading"
                 style="@style/SheetFieldLabel"

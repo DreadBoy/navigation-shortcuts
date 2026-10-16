@@ -35,7 +35,8 @@ class ShareSheet(private val d: E2eDevice) {
     fun status(): String = d.find(id("status_text"))?.text.orEmpty()
     fun message(): String {
         ensureWidgetStep()
-        return d.find(id("message_text"))?.text.orEmpty()
+        // "No navigation widget yet" is shown above the list (widget_step_message), everything else below it.
+        return (d.find(id("message_text")) ?: d.find(id("widget_step_message")))?.text.orEmpty()
     }
     fun iconDescription(): String = d.waitFor(id("icon_button"), what = "icon button").contentDescription.orEmpty()
 
