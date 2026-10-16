@@ -248,7 +248,7 @@ class AddDestinationActivity : Activity() {
                     if (result.destination == null) destinationInput.requestFocus()
                 }
             }
-            if (!iconChosenByUser) setIcon(IconGuess.guess(labelInput.text.toString()))
+            if (!iconChosenByUser) setIcon(IconGuess.guess(labelInput.text.toString(), destinationInput.text.toString()))
             resolved = true
             updateButtons()
         }

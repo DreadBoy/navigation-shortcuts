@@ -55,6 +55,63 @@ class IconsTest {
     }
 
     @Test
+    fun usersRealExampleIsAGym() {
+        val label = "Športno društvo studenci Maribor"
+        val destination = "Športno društvo studenci Maribor, Na Poljanah 20, 2000 Maribor"
+        assertEquals("gym", IconGuess.concept(label, destination))
+        assertEquals(IconRef.niagara("cat_fitness"), IconGuess.guess(label, destination))
+        // Also from the address alone (label typed by the user).
+        assertEquals("gym", IconGuess.concept("Trening", destination))
+    }
+
+    @Test
+    fun slovenianWordsIgnoringCaseAndDiacritics() {
+        val cases = mapOf(
+            "ŠPORTNI CENTER" to "gym", "sportno drustvo" to "gym", "Šport Mladi" to "gym", "Fitnes Hiša" to "gym",
+            "Telovadnica OŠ Ledina" to "gym",
+            "Stadion Ljudski vrt" to "stadium", "na stadionu" to "stadium",
+            "Bazen Kodeljevo" to "pool", "Kopališče Kolezija" to "pool", "Kopalisce Ilirija" to "pool",
+            "Osnovna šola Prule" to "school", "Osnovna sola Prule" to "school", "Fakulteta za računalništvo" to "school",
+            "Gimnazija Bežigrad" to "school", "Šolski center Celje" to "school",
+            "Trgovina Jager" to "shop", "Tuš Planet" to "shop", "TUS Maribor" to "shop", "Mercator Center" to "shop",
+            "Spar Vič" to "shop", "Hofer" to "shop", "Lidl Rudnik" to "shop", "Eurospar Šiška" to "shop",
+            "Restavracija Strelec" to "restaurant", "Gostilna As" to "restaurant", "Picerija Foculus" to "restaurant",
+            "Kavarna Zvezda" to "cafe", "Kafič pri Mostu" to "cafe",
+            "Splošna bolnišnica Celje" to "hospital", "Zdravstveni dom Bežigrad" to "hospital",
+            "Ambulanta Šentvid" to "hospital",
+            "Letališče Jožeta Pučnika" to "airport",
+            "Parkirišče Bežigrad" to "parking", "Garažna hiša Kongresni trg" to "parking",
+            "Hrib Rožnik" to "mountain", "Koča na Golici" to "mountain", "Velika planina" to "mountain",
+            "Planinski dom Kamniška Bistrica" to "mountain",
+            "Služba" to "work", "Podjetje Novak" to "work", "Novak d.o.o." to "work", "NOVAK D. O. O." to "work",
+        )
+        for ((text, concept) in cases) {
+            assertEquals(text, concept, IconGuess.concept(text))
+            assertEquals(text, IconRef.niagara(NiagaraGlyphs.forConcept.getValue(concept)), IconGuess.guess(text))
+        }
+    }
+
+    @Test
+    fun labelWinsOverDestination_destinationUsedWhenLabelSaysNothing() {
+        assertEquals("cafe", IconGuess.concept("Kavarna Rog", "Športni park, Ljubljana"))
+        assertEquals("pool", IconGuess.concept("Kolezija", "Kopališče Kolezija, Gerbičeva 53, Ljubljana"))
+        assertEquals("shop", IconGuess.concept("Mercator d.o.o.", "")) // first word decides
+        assertEquals("pin", IconGuess.concept("Prijatelji", "Celovška 100, Ljubljana"))
+    }
+
+    @Test
+    fun noFalsePositivesOnSlovenianStreetsAndBrands() {
+        val pins = listOf(
+            "Šolska ulica 5, Ljubljana", "Stadionska ulica 10, Ljubljana", "Letališka cesta 16, Ljubljana",
+            "Bazenska pot 3", "Kopališka ulica 1", "Planinska cesta 2", "Bolniška ulica 4",
+            "Sportina Ljubljana", "Sparkasse", "Spartak", "Tušmobil", "Solkan", "Domžale", "Gorenjska",
+            "Podgorje", "Hribarjeva ulica", "Kočevje", "Park Zvezda", "Marketing agencija",
+            "Mercatorjeva 1", "Parkirna ura", "Dobrova 12, 1356 Dobrova", "Celjska cesta 5, 3220 Štore", "Solo bar",
+        )
+        for (text in pins) assertEquals(text, "pin", IconGuess.concept(text, text))
+    }
+
+    @Test
     fun noFalsePositivesOnCommonNames() {
         assertEquals("pin", guess("Domžale")) // "dom" only as a whole word
         assertEquals("pin", guess("Ljubljana Castle"))

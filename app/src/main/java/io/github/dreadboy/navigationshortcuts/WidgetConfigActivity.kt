@@ -420,7 +420,7 @@ class WidgetConfigActivity : Activity() {
                 if (existing == null) {
                     growForOneMore()
                     if (rows * cols <= entries.size) return@setPositiveButton
-                    entries += Entry(label = label, destination = destination, icon = IconGuess.guess(label))
+                    entries += Entry(label = label, destination = destination, icon = IconGuess.guess(label, destination))
                     Log.i(TAG, "added '$label' manually (not saved yet)")
                 } else {
                     val at = entries.indexOfFirst { it.id == existing.id }

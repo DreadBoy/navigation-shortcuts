@@ -314,6 +314,15 @@ User's intent: "First dialog should align with user on icon, label and destinati
 - **"Save for a new widget" is removed**; the way out of a ghost widget (3.9) is now "+ Create new widget". The ghost hint says so.
 - E2E: the pin-with-a-widget path is tested up to Niagara's "Add to home screen" sheet, left with Back (pending fallback checked), never through "Okay" (known issue below).
 
+## 5.8 Keyword auto-pick: Slovenian words on label and address (v0.3.1, user request)
+
+Supersedes the word rules of 3.6. The user's real case — label "Športno društvo studenci Maribor", destination "Športno društvo studenci Maribor, Na Poljanah 20, 2000 Maribor" — got the pin; it must be the gym.
+
+- Matching is case- and diacritics-insensitive (NFD, combining marks removed: "Športno" = "sportno", "TUŠ" = "tus") and runs on the **label first, then the destination address**.
+- Three kinds of rules, all on word boundaries: **whole words incl. listed declined forms** (short or ambiguous ones: dom, šport, stadion/-a/-u, bazen/-a/-u, šola/-e/-i…, gora, hrib, koča, planina, tuš, spar, hofer, lidl, mercator, služba, podjetje, d.o.o.); **stems** only where long and distinctive (športn-, fitnes-, telovadnic-, kopališč-, fakultet-, gimnazij-, trgovin-, restavracij-, gostiln-, picerij-, kavarn-, kafič-, bolnišnic-/bolnic-, letališč-, parkirišč-, parking, airport, hospital); **two-word phrases** checked first (zdravstveni dom → hospital, garažna hiša → parking, planinski dom → mountain, šolski center → school).
+- Concepts: šport/športno/fitnes/telovadnica → gym; stadion → stadium; bazen/kopališče → pool; šola/fakulteta/gimnazija → school; trgovina/market/tuš/mercator/spar/hofer/lidl → shop; restavracija/gostilna/picerija → restaurant; kavarna/kafič → cafe; bolnišnica/zdravstveni dom/ambulanta → hospital; letališče → airport; parkirišče/garažna hiša → parking; hrib/koča/planina/gora → mountain; služba/podjetje/d.o.o. → work; dom/home → home; plus the English words of 3.6. Every concept resolves to a Niagara glyph (5.6).
+- Avoided false positives (unit-tested): street names built on the same stems (Šolska ulica, Stadionska ulica, Letališka cesta, Bazenska pot, Kopališka ulica, Planinska cesta, Bolniška ulica, Mercatorjeva), brands/words containing short keywords (Sportina, Sparkasse, Spartak, Tušmobil, Marketing), towns (Solkan, Domžale, Kočevje, Podgorje, **Štore** — so English "store" was dropped, "solo" too). Accepted: a few town names equal a keyword (Planina, Hrib) and would give the mountain icon from an address there; the label still wins.
+
 ## Known issues
 
 - **Niagara (1.16.33 free): pinning while one of our widgets is placed gets stuck** (measured in 3.2). "+ Create new widget" → Niagara's "Add to home screen" → **Okay** → Niagara opens "Create Widget Stack?", but its transparent `AddItemActivity` stays on top and swallows every tap. Only **Back** gets out; nothing is placed and the place stays pending (it appears in the next widget the user adds). Accepted by the user as a Niagara bug (decisions 5.7); could be reported to Niagara's developer. Niagara Pro (widget stacks) may behave differently — check on the Pixel.

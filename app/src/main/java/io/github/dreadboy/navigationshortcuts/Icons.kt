@@ -1,6 +1,7 @@
 package io.github.dreadboy.navigationshortcuts
 
 import androidx.annotation.DrawableRes
+import java.text.Normalizer
 import java.util.Locale
 
 /**
@@ -112,45 +113,82 @@ object IconResolver {
 }
 
 /**
- * Cheap guess of an icon from words in the place name (Maps shares no category when signed out,
- * decisions 1.5). Slovenian and English words. The concept maps to a Niagara glyph first (decisions 5.5), then to the
- * built-in icon (concepts Niagara lacks); anything else → Niagara's location pin.
+ * Cheap guess of an icon from words in the place's label and destination address (Maps shares no category when
+ * signed out, decisions 1.5, 5.8). Slovenian and English words, ignoring case and diacritics ("Športno" = "sportno").
+ * Matches whole words, listed declined forms, or long-enough stems — never short words inside other words ("spar" ≠
+ * "Sparkasse", "dom" ≠ "Domžale"), and no stems that street names share ("Šolska ulica", "Stadionska ulica",
+ * "Letališka cesta" are not a school, stadium or airport). The label wins over the address. The concept maps to a
+ * Niagara glyph (decisions 5.6), drawn as the built-in Material icon only while Niagara is missing.
  */
 object IconGuess {
-    /** Token must equal one of these (short words that would otherwise match too much as prefixes). */
-    private val exact = mapOf(
-        "home" to "home", "dom" to "home",
-        "work" to "work", "služba" to "work", "sluzba" to "work", "office" to "work", "pisarna" to "work",
-        "shop" to "shop", "store" to "shop", "market" to "shop", "supermarket" to "shop",
-        "cafe" to "cafe", "café" to "cafe", "coffee" to "cafe",
-        "gora" to "mountain", "mountain" to "mountain", "koča" to "mountain", "hut" to "mountain",
-    )
-
-    /** Token must start with one of these (covers Slovenian declension: šola/šole/šoli, bazena, …). */
-    private val prefixes = listOf(
-        "fitnes" to "gym", "gym" to "gym",
-        "stadion" to "stadium", "stadium" to "stadium",
-        "šol" to "school", "school" to "school",
-        "bazen" to "pool", "pool" to "pool", "kopališč" to "pool",
-        "trgovin" to "shop",
-        "restavracij" to "restaurant", "restaurant" to "restaurant", "gostiln" to "restaurant", "pizzeri" to "restaurant",
-        "kavarn" to "cafe",
-        "bolnišnic" to "hospital", "bolnica" to "hospital", "hospital" to "hospital",
-        "letališč" to "airport", "airport" to "airport",
-        "parkirišč" to "parking", "parking" to "parking",
-    )
-
-    /** The concept (built-in icon name) for [text], or [BuiltInIcons.PIN]. */
-    fun concept(text: String): String {
-        val tokens = text.lowercase(Locale.ROOT).split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
-        for (token in tokens) {
-            exact[token]?.let { return it }
-            prefixes.firstOrNull { token.startsWith(it.first) }?.let { return it.second }
-        }
-        return BuiltInIcons.PIN
+    /** Whole words (after [normalize]) → concept. */
+    private val words: Map<String, String> = buildMap {
+        fun add(concept: String, vararg ws: String) = ws.forEach { put(it, concept) }
+        add("home", "home", "dom", "doma", "domov")
+        add("work", "work", "office", "sluzba", "pisarna", "podjetje", "doo")
+        add("gym", "gym", "fitness", "fitnes", "fitnesa", "sport", "sporta", "sportu")
+        add("stadium", "stadium", "stadion", "stadiona", "stadionu", "stadionom")
+        add("pool", "pool", "bazen", "bazena", "bazenu", "bazeni", "bazenom")
+        add("school", "school", "sola", "sole", "soli", "solah", "solam", "solama", "solami")
+        add(
+            "shop", "shop", "market", "supermarket", "hipermarket", "tus", "mercator", "spar", "eurospar",
+            "interspar", "hofer", "lidl",
+        )
+        add("restaurant", "pizza")
+        add("cafe", "cafe", "coffee")
+        add("hospital", "ambulanta", "ambulante", "ambulanti")
+        add(
+            "mountain", "mountain", "hut", "gora", "gore", "gori", "goro", "hrib", "hriba", "hribu", "koca", "koce",
+            "koci", "koco", "planina", "planine", "planini", "planino",
+        )
     }
 
-    fun guess(text: String): IconRef = refFor(concept(text))
+    /** Word stems (word must start with one; long or distinctive enough not to hit street names) → concept. */
+    private val stems: List<Pair<String, String>> = listOf(
+        "sportn" to "gym", "fitnes" to "gym", "telovadnic" to "gym",
+        "kopalisc" to "pool", "swimming" to "pool",
+        "fakultet" to "school", "gimnazij" to "school",
+        "trgovin" to "shop",
+        "restavracij" to "restaurant", "restaurant" to "restaurant", "gostiln" to "restaurant",
+        "picerij" to "restaurant", "pizzeri" to "restaurant",
+        "kavarn" to "cafe", "kafic" to "cafe",
+        "bolnisnic" to "hospital", "bolnic" to "hospital", "hospital" to "hospital",
+        "letalisc" to "airport", "airport" to "airport",
+        "parkirisc" to "parking", "parking" to "parking",
+    )
+
+    /** Two-word phrases (first stem, second stem) → concept; checked before single words ("zdravstveni dom" ≠ home). */
+    private val phrases: List<Triple<String, String, String>> = listOf(
+        Triple("zdravstven", "dom", "hospital"),
+        Triple("garazn", "his", "parking"),
+        Triple("planinsk", "dom", "mountain"),
+        Triple("solsk", "center", "school"),
+    )
+
+    /** Lowercase, diacritics removed ("Športno društvo" → "sportno drustvo"). */
+    fun normalize(text: String): String =
+        Normalizer.normalize(text.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+
+    /** The concept (built-in icon name) for [label], else for [destination], else [BuiltInIcons.PIN]. */
+    fun concept(label: String, destination: String = ""): String =
+        conceptIn(label) ?: conceptIn(destination) ?: BuiltInIcons.PIN
+
+    private fun conceptIn(text: String): String? {
+        // "d.o.o." splits into d, o, o: join it back into one word first.
+        val tokens = normalize(text).replace(Regex("\\bd\\.\\s*o\\.\\s*o\\b\\.?"), " doo ")
+            .split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        for ((i, token) in tokens.withIndex()) {
+            val next = tokens.getOrNull(i + 1)
+            if (next != null) {
+                phrases.firstOrNull { (a, b) -> token.startsWith(a) && next.startsWith(b) }?.let { return it.third }
+            }
+            words[token]?.let { return it }
+            stems.firstOrNull { token.startsWith(it.first) }?.let { return it.second }
+        }
+        return null
+    }
+
+    fun guess(label: String, destination: String = ""): IconRef = refFor(concept(label, destination))
 
     /** Niagara glyph for [concept] (every concept has one, decisions 5.6); drawn as Material while Niagara is missing. */
     fun refFor(concept: String): IconRef =
