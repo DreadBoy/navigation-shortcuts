@@ -119,7 +119,10 @@ class GoogleMaps(private val d: E2eDevice) {
             }
             try {
                 val box = d.ui.wait(Until.findObject(res(E2e.MAPS, "search_omnibox_text_box")), E2e.SHORT)
-                if (box != null && box.contentDescription == "Search here") {
+                // Maps' home search box: "Search here", or a rotating hint ("Try gas stations, ATMs", seen 2026-10-17)
+                // while the Explore tab is shown. On a place or route screen the box shows the place instead.
+                val home = box != null && (box.contentDescription == "Search here" || d.has(res(E2e.MAPS, "explore_tab_strip_button")))
+                if (box != null && home) {
                     box.click()
                 } else if (d.ui.currentPackageName == E2e.MAPS) {
                     // A cold start can restore the last directions/route or place screen (e.g. after a navigation
