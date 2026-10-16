@@ -140,10 +140,15 @@ with_budget() {
   if [ "$left" -le 0 ]; then log "ERROR: E2E_TIMEOUT (${E2E_TIMEOUT}s) used up, not running: $*"; return 124; fi
   t=$(command -v timeout || command -v gtimeout || true)
   if [ -n "$t" ]; then
-    "$t" -k 30 "$left" "$@" || rc=$?
+    # --foreground: stay in the terminal's process group so Ctrl-C reaches Gradle.
+    "$t" --foreground -k 30 "$left" "$@" || rc=$?
   else
+    local old_int old_term interrupted=""
+    old_int=$(trap -p INT); old_term=$(trap -p TERM)
     "$@" &
     pid=$!
+    # Ctrl-C / TERM: a background job ignores SIGINT in a script, so stop it explicitly instead of orphaning it.
+    trap 'interrupted=1; kill "$pid" 2>/dev/null' INT TERM
     ( while kill -0 "$pid" 2>/dev/null; do
         if [ "$(date +%s)" -ge "$DEADLINE" ]; then
           kill -TERM "$pid" 2>/dev/null
@@ -152,7 +157,12 @@ with_budget() {
         fi
         sleep 2
       done ) &
+    # wait returns early (>128) when a trapped signal arrives; wait again for the command to exit.
     wait "$pid" || rc=$?
+    while kill -0 "$pid" 2>/dev/null; do wait "$pid" || rc=$?; done
+    trap - INT TERM
+    eval "$old_int"; eval "$old_term"
+    [ -n "$interrupted" ] && { log "interrupted: $*"; exit 130; }
     [ "$rc" != 0 ] && [ "$(date +%s)" -ge "$DEADLINE" ] && rc=124
   fi
   [ "$rc" = 124 ] && log "ERROR: timed out after E2E_TIMEOUT (${E2E_TIMEOUT}s): $*"

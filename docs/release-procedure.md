@@ -52,6 +52,8 @@ Triggers: push to `main`; manually (repo → Actions → **CI** → **Run workfl
 
 E2E emulator (`reactivecircus/android-emulator-runner@v2`, `ubuntu-latest` with KVM): `system-images;android-36;google_apis_playstore;x86_64` (Google Play image, rev 7, ships Google Maps; local AVD is the arm64 twin), profile `pixel_8`, 3 cores, 4 GB RAM, 228 MB heap, 6 GB data partition, cold boot (`-no-snapshot`, no AVD cache: same path as local runs), `-gpu swiftshader_indirect`, animations left on like the local AVD, boot timeout 15 min. `run-e2e.sh` and `setup-emulator.sh` disable the Play Store (`pm disable-user com.android.vending`, `auto_update 0`) right after boot (decisions 1.2); `setup-emulator.sh` stops with an error if Maps is missing.
 
+The emulator sizing (3 cores, 4 GB RAM) assumes the standard `ubuntu-latest` runner for public repos (4 vCPU, 16 GB RAM); adjust `cores`/`ram-size` in `ci.yml` if the repo becomes private (2 vCPU, 8 GB) or moves to a larger runner.
+
 Niagara: downloaded per run from the developer's GitHub release into `$RUNNER_TEMP` (never into the repo) and checked with `sha256sum -c`; a mismatch fails the job. Pinned in `ci.yml` (job `e2e`, `env`): `NIAGARA_VERSION=1.16.33`, `NIAGARA_SHA256=639d0578…84f3`. To bump: download the new `Niagara_Launcher_v<ver>-release.apk` from `https://github.com/NiagaraLauncher/Niagara-Issues/releases`, `shasum -a 256` it (or take the asset's `digest` from the GitHub API), update both values, run the E2E suite locally against it first.
 
 `run-e2e.sh` env used by CI: `NIAGARA_APK` (the download), `E2E_TIMEOUT` (seconds; default 2700; exit 124 on timeout; uses `timeout`/`gtimeout` if installed, else a watchdog), `E2E_ARTIFACTS_DIR` (logcat for the whole run; on failure also final screenshot, `uiautomator` dump, `dumpsys activity activities`, the suite's own screenshots). Device-side collection happens inside the script because the runner kills the emulator after it.
@@ -98,7 +100,7 @@ Without the secrets (any of the four missing) the run stays green: a `::notice::
 
 Trigger: push of a tag `v*` only (no manual trigger). Tags are pushed only with the user's approval.
 
-1. `preflight`: fails if any of the four secrets is missing (a release must be signed), if the tag is not `v` + `versionName` from `app/build.gradle.kts`, or if `versionCode` is not a positive integer.
+1. `preflight`: fails if any of the four secrets is missing (a release must be signed), if the tag is not `v` + `versionName` from `app/build.gradle.kts`, if `versionCode` is not a positive integer, or if it is not greater than the `versionCode` at the previous `v*` tag (`git describe --tags --abbrev=0 --match 'v*' HEAD^`; no earlier tag = first release, passes).
 2. `ci`: the whole `ci.yml` (unit, E2E, signed `release-build`) with the repo secrets.
 3. `publish` (`contents: write` on this job only): downloads `release-apk`, re-checks the `.sha256` and the signature (`CN=Matic Leva`), and runs `gh release create v<version> --draft --verify-tag` with the APK and its `.sha256` attached.
 

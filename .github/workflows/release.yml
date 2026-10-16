@@ -23,6 +23,8 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history and tags, to compare with the previous release tag
 
       - name: Signing secrets present
         env:
@@ -52,6 +54,15 @@ jobs:
           [ -n "$name" ] || { echo "::error file=$file::versionName not found"; exit 1; }
           [ -n "$code" ] && [ "$code" -gt 0 ] || { echo "::error file=$file::versionCode not set to a positive integer"; exit 1; }
           [ "$tag" = "v$name" ] || { echo "::error::tag $tag does not match versionName $name (expected v$name)"; exit 1; }
+          prev="$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)"
+          if [ -z "$prev" ]; then
+            echo "no earlier v* tag: first release"
+          else
+            prev_code="$(git show "$prev:$file" | sed -n 's/^ *versionCode = \([0-9][0-9]*\).*/\1/p')"
+            echo "previous release $prev: versionCode=$prev_code"
+            [ -n "$prev_code" ] || { echo "::error::versionCode not found in $prev:$file"; exit 1; }
+            [ "$code" -gt "$prev_code" ] || { echo "::error file=$file::versionCode $code must be greater than $prev_code ($prev)"; exit 1; }
+          fi
           echo "version=$name" >> "$GITHUB_OUTPUT"
 
   ci:
