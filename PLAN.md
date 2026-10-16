@@ -26,7 +26,7 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 - [x] 1.4 Niagara capabilities: (a) long-press "Reconfigure" (`widgetFeatures="reconfigurable"`)? (b) honours `requestPinAppWidget`? (c) launches the config activity on placement? (d) can a widget be placed with **no** config activity? Decide which entry points v1 keeps. — (a)(c)(d) yes, (b) declared, to test in Phase 3; size options unreliable (grid must not depend on them). See decisions 1.4.
 - [x] 1.5 Google Maps share: capture what Maps shares on the emulator (text format, short-link host) and where the short link redirects (`/@lat,lng,`, `!3d…!4d…`). Collect ~10 samples (address, business, POI, dropped pin) as test fixtures. — 12 fixtures in `app/src/test/resources/`; Mac-side resolution confirmed by a second agent, on-device capture re-check pending. See decisions 1.5.
 - [x] 1.6 Niagara APK internals (apktool): Anycons in the APK or downloaded after Pro? Readable or obfuscated? Sticker = static asset or base vector + runtime parameters? Decide icon path (expected: own Sticker-style set). — Decided option 2 (own set); fresh verifier confirmed 7/8 claims, the 8th corrected; see decisions 1.6.
-- [ ] 1.7 CI feasibility: GitHub Actions Linux runner with KVM, headless emulator, boot time, suite runtime. **Open problem:** CI needs the Niagara APK but it must not be committed — mirror download pinned to a version, cache, or private storage. Decide.
+- [x] 1.7 CI feasibility: GitHub Actions Linux runner with KVM, headless emulator, boot time, suite runtime. **Open problem:** CI needs the Niagara APK but it must not be committed — mirror download pinned to a version, cache, or private storage. Decide. — Decided: Niagara as pinned download + sha256 from the dev's GitHub release; CI emulator froze at Niagara onboarding (host render/composition deadlock), fixed with -feature -HostComposition + animations off; see decisions 1.7.
 - [x] 1.8 [B] UI Automator 2.3+ test module with helpers: launcher setup, place widget, find cell by label, wait for Maps navigation foreground, force-stop app. Proven by a smoke test placing a stub widget on Niagara's home screen. — Separate `:e2e` test module + `e2e/run-e2e.sh`; final fresh verifier: 3/3 runs green (74–80 s). See decisions 1.8.
 
 ### Phase 2 — Pre-MVP: hardcoded widget on the user's phone
@@ -102,7 +102,7 @@ User decision 2026-10-16: no APK goes to the user until the plan below is finish
 
 ### Phase 7 — CI and release
 - [x] 7.0 GitHub repo `DreadBoy/navigation-shortcuts` created by the user (public, empty as of 2026-10-15).
-- [ ] 7.1 [B] GitHub Actions: on push to `main`, emulator + Niagara (per 1.7) → E2E suite → `assembleRelease`.
+- [x] 7.1 [B] GitHub Actions: on push to `main`, emulator + Niagara (per 1.7) → E2E suite → `assembleRelease`. — ci.yml: unit+lint (blocking), E2E on emulator (non-blocking: run 38976994802 11/15, 4 Maps place-page timeouts on the slow runner), release-build (signed when secrets exist). Release gate = local run-e2e.sh green.
 - [ ] 7.2 [U] User keeps the offline keystore copy and adds secrets (base64 keystore, passwords, alias) to Actions secrets — exact names in `docs/release-procedure.md`.
 - [ ] 7.3 [B] On tag `v*`: signed APK attached to a GitHub Release; `versionCode` increments every release.
 - [ ] 7.4 [U] User installs v1.0.0 from the release page, confirms it installs over the sideloaded build and keeps config.
@@ -186,3 +186,5 @@ _(issues found during verification, with repro and severity)_
 - [low, seen once] (5.7) First tap on a cell right after returning home from the share sheet did nothing.
 
 - [low] (5b, E10) The Dots pack turns every destination into the same dot; check how Niagara's Dots looks with real apps before changing.
+- [medium] (7.1) Make CI E2E blocking: on the slow runner Maps' place page doesn't open within the wait in `GoogleMaps.openPlace` (4/15 in run 38976994802). Add a scalable place-page wait or pre-warm Maps in setup.
+- [low] (7.1) Owed real check on API 36: share sheet step 2 → Back → step 1 with edits, sheet open; Back again closes (covered by Robolectric only).
