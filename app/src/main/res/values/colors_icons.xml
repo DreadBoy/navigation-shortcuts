@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Palette of the own Sticker-style icon set (ic_own_*.xml, docs/icons.md).
+     Approximates Niagara's "Coral" Sticker palette; to be matched against the user's phone
+     in PLAN step 5.2. Only referenced from ic_own_*.xml, hence UnusedResources is ignored. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="UnusedResources">
+    <!-- Dark outline drawn over the glyph. -->
+    <color name="icon_sticker_outline">#482658</color>
+    <!-- Die-cut sticker margin behind the glyph. -->
+    <color name="icon_sticker_background">#FFFFFF</color>
+    <!-- Coral gradient stops, top-left to bottom-right: warm yellow, orange, pink, sky blue. -->
+    <color name="icon_sticker_grad_1">#FCD27A</color>
+    <color name="icon_sticker_grad_2">#FEB57E</color>
+    <color name="icon_sticker_grad_3">#EC9DC6</color>
+    <color name="icon_sticker_grad_4">#8DB5F5</color>
+</resources>
