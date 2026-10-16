@@ -63,10 +63,38 @@ Goal: the widget shows Niagara's own Anycon glyphs, read at runtime from the ins
 
 ### Phase 5b — Exploratory review and look fixes (user decision 2026-10-16)
 User decision 2026-10-16: no APK goes to the user until the plan below is finished (5b, 6.2, 7.1); the next build must be stable, with no basic bugs. Steps that need the user (7.2 secrets, the 7.3 release publish, 7.4) wait for them.
-- [ ] 5b.1 Exploratory verifier on 0.3.0 (the build the user tested), blind to the user's reports: all flows so far, whole-screen view next to Niagara — fit with Niagara, does the screen make sense, every control visibly works, improvements. Output: bugs + suggestions with repro and screenshots.
-- [ ] 5b.2 Triage 5b.1 with the user's own 0.3.0 reports (both icon sets in the picker; white Material stadium among Sticker icons; "Save for a new widget" seemed to do nothing; one-step share sheet; Slovenian place got no icon guess; widget icons ~1.4× Niagara's; "App colours" makes every icon the same blue; colour swatches clickable but ignored outside theme-colour palettes). Record how many of the user's reports the verifier also found.
-- [ ] 5b.3 Look fixes from the triage, at least: icon size matching Niagara's default plus a size setting; per-destination colours for "App colours" (by category, stable fallback per destination); swatches only for theme-colour palettes; icon-to-label spacing and label style like Niagara's.
-- [ ] 5b.4 Icon picker also offers Niagara's 549 per-app glyphs (Slack, Spotify, YouTube, Firefox…) as an "Apps" section after the place/action icons, searchable by app name (user request 2026-10-16).
+- [x] 5b.1 Exploratory verifier on 0.3.0 (the build the user tested), blind to the user's reports: all flows so far, whole-screen view next to Niagara — fit with Niagara, does the screen make sense, every control visibly works, improvements. Output: bugs + suggestions with repro and screenshots. — Done on 0.3.0 (AVD, real Niagara/Maps): 0 blockers, 6 major, 13 minor, 7 polish; no crash; all flows work mechanically.
+- [x] 5b.2 Triage 5b.1 with the user's own 0.3.0 reports (both icon sets in the picker; white Material stadium among Sticker icons; "Save for a new widget" seemed to do nothing; one-step share sheet; Slovenian place got no icon guess; widget icons ~1.4× Niagara's; "App colours" makes every icon the same blue; colour swatches clickable but ignored outside theme-colour palettes). Record how many of the user's reports the verifier also found. — The verifier also found 6 of the user's 8 reports: the white Material stadium among styled icons, Material icons mixed into the picker, the "Save for a new widget" dead end, the missed Slovenian guess, icons slightly larger than Niagara's, App colours all blue, and swatches that do nothing. It missed the one-step share sheet (a design preference) and the missing app glyphs (5b.4). It found 19 issues the user didn't report. Triage result = 5b.3 list.
+- [ ] 5b.3 Fixes from the triage (from the user's reports and the exploratory review on 0.3.0; items already fixed in 0.3.1 are left out). One supervisor, in batches, with an exploratory pass per batch:
+  - Settings/sheet UX:
+    - (E1) Back with unsaved changes in settings → "Save changes?" (Save / Discard / Keep editing); Cancel still discards.
+    - (E18) Delete gives Undo (snackbar); tapping outside the Add/Edit dialog or the share sheet doesn't drop typed text.
+    - (E5) Removing a widget moves its destinations to the pending list, so the next placed widget gets them back; no silent loss.
+    - (E15) The main screen gives Niagara's real steps (long-press the clock → Add Custom Widget), and widget rows look tappable.
+    - (E16) Status bar icons are readable in light mode.
+    - (E24) Add/Edit dialog: persistent field labels plus an icon choice.
+    - (E23) The success toast reads clearly ("Added Stožice Stadium to the widget with Doma, …").
+    - (E25) Consistent settings styling; pack order follows Niagara.
+    - (E26) Clearer Outline text wording.
+    - (E20) Shorter share-target label that fits Maps' grid.
+    - (E14) Long Maps names: the label field shows a length hint (or a suggested short label).
+  - Widget look:
+    - (U) Icon size matches Niagara's default, plus an icon-size setting.
+    - (E19) Icon column/alignment, label font, size and spacing like Niagara's.
+    - (U/E9) "App colours" gives each destination its own colour (by category, stable per destination).
+    - (U/E8) Swatches shown only where they apply, with a plain-language label.
+    - (E4) An empty widget shows a visible "+ Add destinations" cell.
+    - (E3) Growing rows in settings shows the "make the widget taller: long-press → Move and resize" hint, as the share sheet does.
+    - (E17) The style preview uses only real destinations (samples only to fill up to 4).
+    - (E21) Share-sheet icon without the extra green circle.
+    - (E11) Niagara widget-picker preview matches the default Sticker look.
+  - Picker:
+    - (E6) Place categories first, synonyms in search (gym→fitness, swim/pool…), no duplicate "home", the current icon at the top.
+    - (E7) The Material picker is readable in light mode.
+    - (E22) Accessibility labels use readable names.
+    - (E12) More keywords: doma, "sports complex"/"športno društvo", "shopping center", castle/grad → a landmark glyph.
+- [ ] 5b.4 Icon picker also offers Niagara's 549 per-app glyphs (Slack, Spotify, YouTube, Firefox…) as an "Apps" section after the place/action icons, searchable by app name (user request 2026-10-16). (Same supervisor as 5b.3, picker batch.)
+- [ ] 5b.5 Final exploratory pass on the finished build (fresh agent, blind): no major or minor findings left open except triaged backlog; then 6.2.
 
 ### Phase 6 — In-car flow and full suite
 - [ ] 6.1 [B] E2E scenario 6: notes widget on top of the stack, swipe to reveal, tap, Maps navigation in foreground.
@@ -156,3 +184,5 @@ _(issues found during verification, with repro and severity)_
 - [low] (5.7) No-Niagara picker: white Material icons on a light background are hard to see.
 - [low] (5.7) `DebugStoreReceiver` exported in debug builds only. Test name `noWidget_share_placeNewWidget_…` is stale.
 - [low, seen once] (5.7) First tap on a cell right after returning home from the share sheet did nothing.
+
+- [low] (5b, E10) The Dots pack turns every destination into the same dot; check how Niagara's Dots looks with real apps before changing.
