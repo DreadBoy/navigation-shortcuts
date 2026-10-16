@@ -41,7 +41,8 @@ E2E_PACKAGE=io.github.dreadboy.navigationshortcuts.e2e
 
 log() { echo "[run-e2e] $*"; }
 die() { echo "[run-e2e] ERROR: $*" >&2; exit 1; }
-case "$E2E_WAIT_SCALE" in ''|*[!0-9]*|0*) die "E2E_WAIT_SCALE must be a positive integer (got '$E2E_WAIT_SCALE')" ;; esac
+case "$E2E_WAIT_SCALE" in ''|*[!0-9]*|0*) die "E2E_WAIT_SCALE must be an integer 1-10 (got '$E2E_WAIT_SCALE')" ;; esac
+[ "$E2E_WAIT_SCALE" -le 10 ] || die "E2E_WAIT_SCALE must be an integer 1-10 (got '$E2E_WAIT_SCALE')"
 
 if [ -z "${NIAGARA_APK:-}" ]; then
   NIAGARA_APK="$ROOT/vendor/niagara.apk"
@@ -109,6 +110,10 @@ if [ -n "$ARTIFACTS" ]; then
   "$ADB" -s "$ANDROID_SERIAL" logcat -v threadtime > "$ARTIFACTS/logcat.txt" 2>&1 &
   LOGCAT_PID=$!
   log "logcat -> $ARTIFACTS/logcat.txt"
+  # Emulator features in effect: host video decoders (qemu.hwcodec.*) and guest Vulkan. With CI's
+  # -feature -HardwareDecoder / -feature -Vulkan there should be no hwcodec props and no ranchu Vulkan.
+  props=$(a shell getprop 2>/dev/null | tr -d '\r' | grep -i -E 'hwcodec|vulkan' | tr '\n' ' ' || true)
+  log "emulator media/vulkan props: ${props:-(none)}"
 fi
 # Play Store self-updates kill Maps mid-run and grow the AVD (decisions 1.2); idempotent, also in setup-emulator.sh.
 a shell pm disable-user --user 0 com.android.vending >/dev/null 2>&1 || log "could not disable the Play Store"

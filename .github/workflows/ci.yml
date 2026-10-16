@@ -111,8 +111,18 @@ jobs:
       - name: Start host memory sampler
         run: |
           mkdir -p "$RUNNER_TEMP/e2e-artifacts/host"
-          nohup bash -c 'while :; do date -u +%T; free -m | sed -n 2,3p; sleep 15; done' \
-            > "$RUNNER_TEMP/e2e-artifacts/host/memory.log" 2>&1 &
+          # Each sample: time, load average, memory, and the emulator's QEMU process (pid, RSS KiB, %CPU, uptime).
+          # The emulator 37 binary is qemu/linux-x86_64/qemu-system-x86_64 (comm is cut to 15 chars, so match -f).
+          cat > "$RUNNER_TEMP/host-sampler.sh" <<'EOF'
+          while :; do
+            echo "== $(date -u +%T) load $(cut -d' ' -f1-3 /proc/loadavg)"
+            free -m | sed -n 2,3p
+            pids=$(pgrep -d, -f 'qemu-system-x86_64' || true)
+            if [ -n "$pids" ]; then ps -o pid,rss,pcpu,etime,args -p "$pids" | cut -c1-120; else echo "no qemu-system process"; fi
+            sleep 15
+          done
+          EOF
+          nohup bash "$RUNNER_TEMP/host-sampler.sh" > "$RUNNER_TEMP/e2e-artifacts/host/memory.log" 2>&1 &
 
       - name: E2E suite on emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -132,10 +142,12 @@ jobs:
           # Play Store AVDs force a 6 GB data partition anyway (decisions 1.2).
           disk-size: 6G
           emulator-boot-timeout: 900
-          # -feature -HardwareDecoder: guest uses its software video codecs instead of the emulator's host-side
-          # decoders. Run 2 died ~20 s after Niagara's onboarding allocated c2.goldfish.hevc.decoder (the host then
-          # logged its CUDA/cuvid fallback); docs/release-procedure.md has the details.
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none -feature -HardwareDecoder
+          # Run 2: the guest froze ~20 s after Niagara's onboarding started a host-side c2.goldfish.hevc.decoder and
+          # the emulator process died ~60 s after that (a hang, then killed). Two suspects, one flag each:
+          # -feature -HardwareDecoder: guest software video codecs instead of the emulator's host-side decoders;
+          # -feature -Vulkan: no guest Vulkan on gfxstream/swiftshader (HWUI already renders with skiagl).
+          # run-e2e.sh logs the hwcodec/vulkan props so a run shows both took effect. Details: docs/release-procedure.md.
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none -feature -HardwareDecoder -feature -Vulkan
           # Keep animations on, like the local AVD the suite was verified on.
           disable-animations: false
           # One command: the runner runs each script line in its own `sh -c`; the emulator is killed afterwards,
