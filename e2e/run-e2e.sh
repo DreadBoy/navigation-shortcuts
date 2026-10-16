@@ -14,10 +14,11 @@
 #        GEO_LNG/GEO_LAT mock location (default Ljubljana 14.5058 / 46.0569, same as setup-emulator.sh)
 #        ANDROID_HOME  SDK (else ANDROID_SDK_ROOT, else ~/Library/Android/sdk on macOS, ~/Android/Sdk elsewhere)
 #        E2E_TIMEOUT   overall limit in seconds for the Gradle part (build/install + both test passes); default 2700
+#        SETUP_TIMEOUT limit in seconds for setup-emulator.sh (provisioning); default 1800
 #        E2E_ARTIFACTS_DIR  if set: logcat of the whole run is written there, and on failure also a final screenshot,
 #                      a uiautomator dump, `dumpsys activity activities`, the suite's own screenshots and the
 #                      emulator log (when this script booted the emulator)
-# Exit:  0 = all tests passed; non-zero = boot/setup/build/test failure (124 = E2E_TIMEOUT hit).
+# Exit:  0 = all tests passed; non-zero = boot/setup/build/test failure (124 = E2E_TIMEOUT or SETUP_TIMEOUT hit).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -31,6 +32,7 @@ AVD="${AVD:-navshort-e2e}"
 GEO_LNG="${GEO_LNG:-14.5058}"; GEO_LAT="${GEO_LAT:-46.0569}"
 SETUP_MARKER=/data/local/tmp/navshort-e2e-setup-done
 E2E_TIMEOUT="${E2E_TIMEOUT:-2700}"
+SETUP_TIMEOUT="${SETUP_TIMEOUT:-1800}"
 ARTIFACTS="${E2E_ARTIFACTS_DIR:-}"
 EMULATOR_LOG="${TMPDIR:-/tmp}/navshort-emulator.log"
 E2E_PACKAGE=io.github.dreadboy.navigationshortcuts.e2e
@@ -111,33 +113,12 @@ a shell svc power stayon true
 a shell input keyevent KEYCODE_WAKEUP
 a shell wm dismiss-keyguard >/dev/null 2>&1 || true
 
-# ---------------------------------------------------------------- provisioning
-needs_setup=""
-[ "${FORCE_SETUP:-}" = 1 ] && needs_setup="forced"
-a shell pm list packages bitpit.launcher | grep -q 'package:bitpit.launcher$' || needs_setup="${needs_setup:-Niagara not installed}"
-home=$(a shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1 | tr -d '\r')
-[ "$home" = "bitpit.launcher/.ui.HomeActivity" ] || needs_setup="${needs_setup:-default home is '$home'}"
-a shell ls "$SETUP_MARKER" >/dev/null 2>&1 || needs_setup="${needs_setup:-never provisioned}"
-if [ -n "$needs_setup" ]; then
-  log "provisioning ($needs_setup) with Niagara APK $NIAGARA_APK"
-  bash "$HERE/setup-emulator.sh" -s "$ANDROID_SERIAL" "$NIAGARA_APK" || die "setup-emulator.sh failed"
-  a shell touch "$SETUP_MARKER"
-else
-  log "already provisioned (Niagara is default home)"
-fi
-
-# ---------------------------------------------------------------- run
-a emu geo fix "$GEO_LNG" "$GEO_LAT" >/dev/null || die "geo fix failed (not an emulator?)"
-log "mock location lng=$GEO_LNG lat=$GEO_LAT"
-
-cd "$ROOT"
-
-# Runs a command within what is left of the E2E_TIMEOUT budget: GNU timeout/gtimeout when present, else a watchdog.
-DEADLINE=$(( $(date +%s) + E2E_TIMEOUT ))
+# Runs a command until DEADLINE (epoch seconds; BUDGET names the limit in messages): GNU timeout/gtimeout when
+# present, else a watchdog. Used for provisioning (SETUP_TIMEOUT) and for the Gradle part (E2E_TIMEOUT).
 with_budget() {
   local left rc=0 t pid
   left=$(( DEADLINE - $(date +%s) ))
-  if [ "$left" -le 0 ]; then log "ERROR: E2E_TIMEOUT (${E2E_TIMEOUT}s) used up, not running: $*"; return 124; fi
+  if [ "$left" -le 0 ]; then log "ERROR: $BUDGET used up, not running: $*"; return 124; fi
   t=$(command -v timeout || command -v gtimeout || true)
   if [ -n "$t" ]; then
     # --foreground: stay in the terminal's process group so Ctrl-C reaches Gradle.
@@ -165,9 +146,34 @@ with_budget() {
     [ -n "$interrupted" ] && { log "interrupted: $*"; exit 130; }
     [ "$rc" != 0 ] && [ "$(date +%s)" -ge "$DEADLINE" ] && rc=124
   fi
-  [ "$rc" = 124 ] && log "ERROR: timed out after E2E_TIMEOUT (${E2E_TIMEOUT}s): $*"
+  [ "$rc" = 124 ] && log "ERROR: timed out after $BUDGET: $*"
   return "$rc"
 }
+
+# ---------------------------------------------------------------- provisioning
+needs_setup=""
+[ "${FORCE_SETUP:-}" = 1 ] && needs_setup="forced"
+a shell pm list packages bitpit.launcher | grep -q 'package:bitpit.launcher$' || needs_setup="${needs_setup:-Niagara not installed}"
+home=$(a shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1 | tr -d '\r')
+[ "$home" = "bitpit.launcher/.ui.HomeActivity" ] || needs_setup="${needs_setup:-default home is '$home'}"
+a shell ls "$SETUP_MARKER" >/dev/null 2>&1 || needs_setup="${needs_setup:-never provisioned}"
+if [ -n "$needs_setup" ]; then
+  log "provisioning ($needs_setup) with Niagara APK $NIAGARA_APK"
+  DEADLINE=$(( $(date +%s) + SETUP_TIMEOUT )); BUDGET="SETUP_TIMEOUT (${SETUP_TIMEOUT}s)"
+  rc=0
+  with_budget bash "$HERE/setup-emulator.sh" -s "$ANDROID_SERIAL" "$NIAGARA_APK" || rc=$?
+  [ "$rc" = 0 ] || { echo "[run-e2e] ERROR: setup-emulator.sh failed (exit $rc)" >&2; exit "$rc"; }
+  a shell touch "$SETUP_MARKER"
+else
+  log "already provisioned (Niagara is default home)"
+fi
+
+# ---------------------------------------------------------------- run
+a emu geo fix "$GEO_LNG" "$GEO_LAT" >/dev/null || die "geo fix failed (not an emulator?)"
+log "mock location lng=$GEO_LNG lat=$GEO_LAT"
+
+cd "$ROOT"
+DEADLINE=$(( $(date +%s) + E2E_TIMEOUT )); BUDGET="E2E_TIMEOUT (${E2E_TIMEOUT}s)"
 
 RESULTS_DIR="$ROOT/e2e/build/outputs/androidTest-results/connected"
 MERGED="$ROOT/e2e/build/outputs/run-e2e-results"

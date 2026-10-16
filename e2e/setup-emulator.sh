@@ -26,6 +26,7 @@ MAPS=com.google.android.apps.maps
 a() { if [ -n "$SERIAL" ]; then "$ADB" -s "$SERIAL" "$@"; else "$ADB" "$@"; fi; }
 log() { echo "[setup] $*"; }
 die() { echo "[setup] ERROR: $*" >&2; exit 1; }
+case "$SCALE" in ''|*[!0-9]*|0*) die "SETUP_LOOP_SCALE must be a positive integer (got '$SCALE')" ;; esac
 
 # uiautomator dump of the focused window (empty string if the UI never goes idle, e.g. Maps navigation)
 dump() { a shell rm -f /sdcard/ui.xml >/dev/null 2>&1; a shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; a exec-out cat /sdcard/ui.xml 2>/dev/null; }

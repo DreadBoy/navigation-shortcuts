@@ -56,7 +56,7 @@ jobs:
   e2e:
     name: E2E (emulator, Niagara, Google Maps)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       # Niagara Launcher from the developer's GitHub releases (decisions 1.1). To bump: change both values;
       # the sha256 is on the release asset (GitHub API "digest") or from `shasum -a 256` of the downloaded APK.
@@ -66,6 +66,8 @@ jobs:
       E2E_TIMEOUT: "2700"
       # setup-emulator.sh retry counts x3: first cold boot with a software GPU is much slower than the local AVD.
       SETUP_LOOP_SCALE: "3"
+      # Limit for setup-emulator.sh inside run-e2e.sh, seconds (boot ~15 + setup 30 + E2E 45 min < 120 min job).
+      SETUP_TIMEOUT: "1800"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
