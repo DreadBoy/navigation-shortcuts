@@ -56,7 +56,7 @@ Goal: the widget shows Niagara's own Anycon glyphs, read at runtime from the ins
 - [x] 5.1 Own Sticker-style vector set — built, then dropped by user decision (2026-10-16): no own copy of Niagara's look; fallback is the built-in Material set. Removed from the repo (history: commit 0e525b5).
 - [x] 5.2 [M] How Niagara styles Anycons: are pack colours, textures, stroke and shape parameters for the 9 packs (Material, Sticker, Dots, Outline, Outline Chroma, Watercolor, Marble, Bright, Stellar) defined in Niagara's resources (styles/attrs/drawables), and which parts live in code? If in code: decompile (jadx) and document each pack's compositing recipe precisely enough to re-create it. Record in decisions. — All 9 packs computed in code, re-creatable; glyph XML + 5 textures read at runtime; spec in git-ignored `vendor/niagara-styles/`; see decisions 5.2.
 - [ ] 5.3 [M] Runtime glyph loading spike on the emulator: `<queries>` for `bitpit.launcher`, `getResourcesForApplication` + `getIdentifier`, Niagara theme applied so colour attrs resolve; render a few `ic_ip_*` glyphs on our widget. Measure: load time, failures, behaviour when Niagara is missing/updated.
-- [ ] 5.4 [B] Style renderer: re-create the packs (Sticker first, then the other 8) per 5.2; bitmap cache; fallback to the built-in Material icon when Niagara or a glyph is missing.
+- [x] 5.4 [B] Style renderer: re-create the packs (Sticker first, then the other 8) per 5.2; bitmap cache; fallback to the built-in Material icon when Niagara or a glyph is missing. — `:anycons` module: glyph parser, OKLCH palettes, 9 composers (22 variants), `NiagaraGlyphSource` returning null on any failure; 58 JVM tests incl. all 891 real glyphs; fresh verifier HAPPY. Not yet wired into `:app`; on-device check is 5.3.
 - [ ] 5.5 [B] Icon picker over Niagara glyphs (categories/actions/apps, searchable); stored as `{source: niagara, name}`; name-based guess maps to Niagara glyph names.
 - [ ] 5.6 [U] User compares each pack against Niagara on the Pixel 10 (reference screenshots per pack help); mismatches → backlog.
 
@@ -97,4 +97,8 @@ _(issues found during verification, with repro and severity)_
 - [low] No overall timeout on the Gradle/instrumentation step in `run-e2e.sh` (CI could hang).
 - [low] `:app` androidTest dependencies are unused since tests live in `:e2e`.
 - [medium] Release builds shrink resources: any drawable looked up via `getIdentifier` (not `R.drawable`) is stripped — reference built-in icons directly.
+- [low] Anycons: Outline dark-text stroke hard-coded #1A1C1F (Niagara varies it by palette).
+- [low] Anycons: `act_pause_circled_48`/`act_play_circled_48` render broken as Sticker (48×48 viewport + 12,12 pivot, as in the spec) — exclude from the Sticker picker.
+- [low] Anycons: Dots renders without Niagara (no glyph) — `:app` must not treat a non-null bitmap as "Niagara available".
+- [low] Anycons: launcher shadow blur can be cut at the bitmap's bottom edge for full-bleed shapes.
 - [low] CI keystore reconstruction from secrets is documented but not implemented (7.1).

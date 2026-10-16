@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Glyphs and textures are read at runtime from the installed Niagara launcher. -->
+    <queries>
+        <package android:name="bitpit.launcher" />
+    </queries>
+
+</manifest>
