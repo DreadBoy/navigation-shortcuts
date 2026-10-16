@@ -1,0 +1,231 @@
+# CI: unit tests + lint, the E2E suite on an emulator (real Niagara + real Google Maps), then the release build.
+# Docs: docs/release-procedure.md ("CI and release workflows").
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # Called by release.yml on a v* tag, so a release is built from exactly the same verified pipeline.
+  workflow_call:
+    secrets:
+      RELEASE_KEYSTORE_BASE64:
+        required: false
+      RELEASE_STORE_PASSWORD:
+        required: false
+      RELEASE_KEY_ALIAS:
+        required: false
+      RELEASE_KEY_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "21"
+
+jobs:
+  unit:
+    name: Unit tests and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - name: Unit tests, lint, debug build
+        run: ./gradlew --console=plain testDebugUnitTest lintDebug assembleDebug
+      - name: Upload unit test and lint reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-reports
+          path: |
+            app/build/reports/
+            anycons/build/reports/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  e2e:
+    name: E2E (emulator, Niagara, Google Maps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      # Niagara Launcher from the developer's GitHub releases (decisions 1.1). To bump: change both values;
+      # the sha256 is on the release asset (GitHub API "digest") or from `shasum -a 256` of the downloaded APK.
+      NIAGARA_VERSION: "1.16.33"
+      NIAGARA_SHA256: "639d0578eb50b9b2d79937360b0ff65145760022fe1273053b4338a7103e84f3"
+      # Overall limit for run-e2e.sh's Gradle part (build/install + both test passes), seconds.
+      E2E_TIMEOUT: "2700"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download Niagara (pinned version and sha256)
+        run: |
+          dir="$RUNNER_TEMP/niagara"
+          mkdir -p "$dir"
+          apk="$dir/Niagara_Launcher_v${NIAGARA_VERSION}-release.apk"
+          url="https://github.com/NiagaraLauncher/Niagara-Issues/releases/download/v${NIAGARA_VERSION}/Niagara_Launcher_v${NIAGARA_VERSION}-release.apk"
+          curl -fsSL --retry 3 --retry-delay 5 -o "$apk" "$url"
+          if ! echo "${NIAGARA_SHA256}  ${apk}" | sha256sum -c -; then
+            echo "::error::Niagara APK sha256 mismatch (expected ${NIAGARA_SHA256}, got $(sha256sum "$apk" | cut -d' ' -f1)) for $url"
+            exit 1
+          fi
+          echo "NIAGARA_APK=$apk" >> "$GITHUB_ENV"
+
+      # Build before the emulator starts, so compilation does not compete with it for CPU;
+      # run-e2e.sh's own Gradle calls are then mostly up to date.
+      - name: Build app and E2E APKs
+        run: ./gradlew --console=plain :app:assembleDebug :e2e:assembleDebug
+
+      - name: E2E suite on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_ARTIFACTS_DIR: ${{ runner.temp }}/e2e-artifacts
+        with:
+          api-level: 36
+          # system-images;android-36;google_apis_playstore;x86_64: Google Play image, ships Google Maps.
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_8
+          cores: 3
+          ram-size: 4096M
+          heap-size: 228M
+          # Play Store AVDs force a 6 GB data partition anyway (decisions 1.2).
+          disk-size: 6G
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none
+          # Keep animations on, like the local AVD the suite was verified on.
+          disable-animations: false
+          # One command: the runner runs each script line in its own `sh -c`; the emulator is killed afterwards,
+          # so run-e2e.sh collects logcat and failure diagnostics itself (E2E_ARTIFACTS_DIR).
+          script: bash e2e/run-e2e.sh --console=plain
+
+      - name: Upload E2E test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-test-results
+          path: |
+            e2e/build/outputs/androidTest-results/
+            e2e/build/reports/androidTests/
+            e2e/build/outputs/run-e2e-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload E2E diagnostics (logcat, screenshots, UI dump)
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-diagnostics
+          path: ${{ runner.temp }}/e2e-artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release-build:
+    name: Release build
+    needs: [unit, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Check signing secrets
+        id: signing
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$RELEASE_STORE_PASSWORD" ] \
+             && [ -n "$RELEASE_KEY_ALIAS" ] && [ -n "$RELEASE_KEY_PASSWORD" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Release not signed::Signing secrets are not set (all four RELEASE_* secrets needed). Building an unsigned release APK as a compile/R8 check only; nothing is uploaded."
+          fi
+
+      - name: Reconstruct keystore from secrets
+        if: steps.signing.outputs.available == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set +x
+          umask 077
+          dir="$RUNNER_TEMP/signing"
+          mkdir -p "$dir"
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$dir/release.jks"
+          cat > "$dir/keystore.properties" <<EOF
+          storeFile=$dir/release.jks
+          storePassword=$RELEASE_STORE_PASSWORD
+          keyAlias=$RELEASE_KEY_ALIAS
+          keyPassword=$RELEASE_KEY_PASSWORD
+          EOF
+          echo "NAVSHORT_KEYSTORE_PROPERTIES=$dir/keystore.properties" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        if: steps.signing.outputs.available == 'true'
+        run: ./gradlew --console=plain assembleRelease
+
+      - name: Build unsigned release APK (no secrets; not uploaded)
+        if: steps.signing.outputs.available != 'true'
+        env:
+          # Make sure no properties file is picked up by accident.
+          NAVSHORT_KEYSTORE_PROPERTIES: ${{ runner.temp }}/no-signing/keystore.properties
+        run: ./gradlew --console=plain assembleRelease -x validateSigningRelease
+
+      - name: Verify signature, name and checksum
+        if: steps.signing.outputs.available == 'true'
+        run: |
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          src=app/build/outputs/apk/release/app-release.apk
+          out="$("$apksigner" verify --print-certs -v "$src")"
+          echo "$out" | grep -E '^(Verifies|Verified using|Signer #1 certificate (DN|SHA-256))'
+          echo "$out" | grep -qx 'Verifies' || { echo "::error::release APK does not verify"; exit 1; }
+          echo "$out" | grep -q '^Signer #1 certificate DN: CN=Matic Leva$' || { echo "::error::unexpected signer DN"; exit 1; }
+          version="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["elements"][0]["versionName"])' app/build/outputs/apk/release/output-metadata.json)"
+          dist="$RUNNER_TEMP/dist"
+          mkdir -p "$dist"
+          name="navigation-shortcuts-${version}.apk"
+          cp "$src" "$dist/$name"
+          (cd "$dist" && sha256sum "$name" > "$name.sha256" && cat "$name.sha256")
+
+      - name: Upload signed release APK
+        if: steps.signing.outputs.available == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-apk
+          path: ${{ runner.temp }}/dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove signing files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/signing"

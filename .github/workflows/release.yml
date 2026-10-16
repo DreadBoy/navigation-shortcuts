@@ -1,0 +1,103 @@
+# Release: on a pushed tag v<versionName> (e.g. v1.0.0) run the full CI (unit, E2E, signed release build) and
+# create a DRAFT GitHub Release with the signed APK and its .sha256. The user reviews and publishes the draft.
+# Tags are pushed only with the user's approval. Docs: docs/release-procedure.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Check tag, version and secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Signing secrets present
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$RELEASE_KEYSTORE_BASE64" ] || missing="$missing RELEASE_KEYSTORE_BASE64"
+          [ -n "$RELEASE_STORE_PASSWORD" ] || missing="$missing RELEASE_STORE_PASSWORD"
+          [ -n "$RELEASE_KEY_ALIAS" ] || missing="$missing RELEASE_KEY_ALIAS"
+          [ -n "$RELEASE_KEY_PASSWORD" ] || missing="$missing RELEASE_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::A release must be signed; missing Actions secrets:$missing (see docs/release-procedure.md)"
+            exit 1
+          fi
+
+      - name: Tag matches versionName, versionCode set
+        id: version
+        run: |
+          file=app/build.gradle.kts
+          name="$(sed -n 's/^ *versionName = "\([^"]*\)".*/\1/p' "$file")"
+          code="$(sed -n 's/^ *versionCode = \([0-9][0-9]*\).*/\1/p' "$file")"
+          tag="${GITHUB_REF_NAME}"
+          echo "tag=$tag versionName=$name versionCode=$code"
+          [ -n "$name" ] || { echo "::error file=$file::versionName not found"; exit 1; }
+          [ -n "$code" ] && [ "$code" -gt 0 ] || { echo "::error file=$file::versionCode not set to a positive integer"; exit 1; }
+          [ "$tag" = "v$name" ] || { echo "::error::tag $tag does not match versionName $name (expected v$name)"; exit 1; }
+          echo "version=$name" >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: CI
+    needs: preflight
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  publish:
+    name: Draft GitHub Release
+    needs: [preflight, ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+    steps:
+      - name: Download signed APK
+        uses: actions/download-artifact@v8
+        with:
+          name: release-apk
+          path: dist
+
+      - name: Verify APK, signature and checksum
+        run: |
+          apk="navigation-shortcuts-${VERSION}.apk"
+          cd dist
+          ls -l
+          [ -f "$apk" ] && [ -f "$apk.sha256" ] || { echo "::error::expected dist/$apk and dist/$apk.sha256"; exit 1; }
+          sha256sum -c "$apk.sha256"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          out="$("$apksigner" verify --print-certs -v "$apk")"
+          echo "$out" | grep -E '^(Verifies|Verified using|Signer #1 certificate (DN|SHA-256))'
+          echo "$out" | grep -qx 'Verifies' || { echo "::error::$apk does not verify"; exit 1; }
+          echo "$out" | grep -q '^Signer #1 certificate DN: CN=Matic Leva$' || { echo "::error::unexpected signer DN"; exit 1; }
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk="navigation-shortcuts-${VERSION}.apk"
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --verify-tag \
+            --title "Navigation Shortcuts ${VERSION}" \
+            --notes "Signed APK for sideloading; see docs/release-procedure.md for install steps. SHA-256: $(cut -d' ' -f1 "dist/$apk.sha256")" \
+            "dist/$apk" "dist/$apk.sha256"
