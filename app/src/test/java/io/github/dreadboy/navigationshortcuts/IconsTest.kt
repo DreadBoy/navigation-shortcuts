@@ -303,6 +303,21 @@ class IconsTest {
         assertEquals(IconRef.niagara("cat_tower_defense_game"), IconGuess.guess("Ljubljanski grad"))
     }
 
+    /** A keyword glued to digits is the keyword ("GYM24" in Maps, Dunajska c. 154), without new false positives. */
+    @Test
+    fun keywordGluedToDigits() {
+        assertEquals("gym", IconGuess.concept("GYM24", "GYM24, Dunajska cesta 154, 1000 Ljubljana"))
+        assertEquals("gym", IconGuess.concept("x", "GYM24, Dunajska cesta 154, 1000 Ljubljana"))
+        for (text in listOf("Fitnes24", "Gym 24", "fitness365", "SPORT2000")) assertEquals(text, "gym", IconGuess.concept(text))
+        assertEquals("shop", IconGuess.concept("Spar2"))
+        // Digits before letters, digits inside words, and the street/village rules are unchanged.
+        val pins = listOf(
+            "24gym", "A1 Slovenija", "Domžale2", "Gradec12", "Sparkasse24", "Grad12 ulica", "Stadionska 2a",
+            "Šolska ulica 5", "Planina 5, 6232 Planina",
+        )
+        for (text in pins) assertEquals(text, "pin", IconGuess.concept("Prijatelji", text))
+    }
+
     @Test
     fun castleFalsePositives() {
         val pins = listOf(
@@ -314,6 +329,10 @@ class IconsTest {
         // A village of that name in the address (keyword after a postcode or before a house number) is no castle.
         assertEquals("pin", IconGuess.concept("Kmetija Novak", "Grad 12, 9264 Grad"))
         assertEquals("pin", IconGuess.concept("Hiša", "Planina 5, 6232 Planina"))
+        // Maps' label for a shared town carries the postcode: a village name, also in the label (V2 on the AVD).
+        assertEquals("pin", IconGuess.concept("9264 Grad", "9264 Grad, Slovenia"))
+        assertEquals("pin", IconGuess.concept("6232 Planina", "6232 Planina, Slovenia"))
+        assertEquals("pin", IconGuess.concept("2000 Maribor", "2000 Maribor, Slovenia"))
         // Labels still match before a number ("Gym 24"), addresses still match a place name.
         assertEquals("gym", IconGuess.concept("Gym 24"))
         assertEquals("castle", IconGuess.concept("Izlet", "Ljubljanski grad, Grajska planota 1, 1000 Ljubljana"))

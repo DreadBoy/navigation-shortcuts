@@ -253,8 +253,10 @@ object IconGuess {
             .split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
 
     /**
-     * In an [address], a keyword followed by a house number or after a postcode is a village or town name ("Grad 12,
-     * 9264 Grad", "Planina 5", "6232 Planina"), not the place itself.
+     * A keyword after a 4-digit postcode is a village or town name ("9264 Grad", "6232 Planina" — Maps puts the
+     * postcode into the label when a town is shared), not the place itself. In an [address], also a keyword followed
+     * by a house number ("Grad 12"); in a label that is part of the name ("Gym 24"). A keyword glued to digits counts
+     * as the keyword ("GYM24", "Fitnes24").
      */
     private fun conceptIn(text: String, address: Boolean): String? {
         val tokens = tokens(text)
@@ -263,19 +265,21 @@ object IconGuess {
         for ((i, token) in tokens.withIndex()) {
             val next = tokens.getOrNull(i + 1)
             if (next in streetWords) continue
-            if (address && (next?.all(Char::isDigit) == true || tokens.getOrNull(i - 1)?.let(::isPostcode) == true)) {
-                continue
-            }
+            if (tokens.getOrNull(i - 1)?.let(::isPostcode) == true) continue
+            if (address && next?.all(Char::isDigit) == true) continue
             if (i >= 2 && tokens[i - 1] == "na" && tokens[i - 2] in streetWords) continue
             if (next != null) {
                 phrases.firstOrNull { (a, b) -> token.startsWith(a) && next.startsWith(b) }?.let { return it.third }
             }
-            words[token]?.let { return it }
+            (words[token] ?: gluedDigits.matchEntire(token)?.let { words[it.groupValues[1]] })?.let { return it }
             stems.firstOrNull { (stem, _) -> token.startsWith(stem) && !adjectiveRest.matches(token.removePrefix(stem)) }
                 ?.let { return it.second }
         }
         return null
     }
+
+    /** "gym24" → "gym": letters directly followed by digits. */
+    private val gluedDigits = Regex("^(\\p{L}+)\\p{N}+$")
 
     private fun isPostcode(token: String) = token.length == 4 && token.all(Char::isDigit)
 
