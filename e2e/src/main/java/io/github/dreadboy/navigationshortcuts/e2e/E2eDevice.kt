@@ -30,8 +30,15 @@ object E2e {
     /** Cells of a newly placed widget (default 1×4 grid). */
     const val DEFAULT_CELLS = 4
 
-    const val SHORT = 5_000L
-    const val LONG = 20_000L
+    /**
+     * Multiplier for [SHORT] and [LONG]: instrumentation argument `waitScale` (run-e2e.sh passes E2E_WAIT_SCALE;
+     * CI uses a slower software-GPU emulator). Default 1, so local runs keep the measured waits.
+     */
+    private val waitScale: Long =
+        InstrumentationRegistry.getArguments().getString("waitScale")?.toLongOrNull()?.coerceIn(1, 10) ?: 1
+
+    val SHORT = 5_000L * waitScale
+    val LONG = 20_000L * waitScale
 }
 
 /** Thin wrapper over [UiDevice] with waits that fail with a readable message instead of returning null. */

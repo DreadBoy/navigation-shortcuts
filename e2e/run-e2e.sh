@@ -15,6 +15,7 @@
 #        ANDROID_HOME  SDK (else ANDROID_SDK_ROOT, else ~/Library/Android/sdk on macOS, ~/Android/Sdk elsewhere)
 #        E2E_TIMEOUT   overall limit in seconds for the Gradle part (build/install + both test passes); default 2700
 #        SETUP_TIMEOUT limit in seconds for setup-emulator.sh (provisioning); default 1800
+#        E2E_WAIT_SCALE  multiplier (1-10) for the suite's standard UI waits (5 s / 20 s); default 1
 #        E2E_ARTIFACTS_DIR  if set: logcat of the whole run is written there, and on failure also a final screenshot,
 #                      a uiautomator dump, `dumpsys activity activities`, the suite's own screenshots and the
 #                      emulator log (when this script booted the emulator)
@@ -33,12 +34,14 @@ GEO_LNG="${GEO_LNG:-14.5058}"; GEO_LAT="${GEO_LAT:-46.0569}"
 SETUP_MARKER=/data/local/tmp/navshort-e2e-setup-done
 E2E_TIMEOUT="${E2E_TIMEOUT:-2700}"
 SETUP_TIMEOUT="${SETUP_TIMEOUT:-1800}"
+E2E_WAIT_SCALE="${E2E_WAIT_SCALE:-1}"
 ARTIFACTS="${E2E_ARTIFACTS_DIR:-}"
 EMULATOR_LOG="${TMPDIR:-/tmp}/navshort-emulator.log"
 E2E_PACKAGE=io.github.dreadboy.navigationshortcuts.e2e
 
 log() { echo "[run-e2e] $*"; }
 die() { echo "[run-e2e] ERROR: $*" >&2; exit 1; }
+case "$E2E_WAIT_SCALE" in ''|*[!0-9]*|0*) die "E2E_WAIT_SCALE must be a positive integer (got '$E2E_WAIT_SCALE')" ;; esac
 
 if [ -z "${NIAGARA_APK:-}" ]; then
   NIAGARA_APK="$ROOT/vendor/niagara.apk"
@@ -59,6 +62,7 @@ collect() {
     mkdir -p "$ARTIFACTS"
     log "exit $rc: collecting diagnostics into $ARTIFACTS"
     [ -n "$BOOTED_HERE" ] && [ -f "$EMULATOR_LOG" ] && cp "$EMULATOR_LOG" "$ARTIFACTS/"
+    "$ADB" devices -l > "$ARTIFACTS/adb-devices.txt" 2>&1 # is the device still there (offline / gone)?
     if [ -n "$ANDROID_SERIAL" ]; then
       a exec-out screencap -p > "$ARTIFACTS/final-screen.png" 2>/dev/null
       a shell uiautomator dump /sdcard/navshort-final-ui.xml >/dev/null 2>&1 \
@@ -197,10 +201,12 @@ if [ "$status" = 0 ]; then
   # Pass 1: everything except the ghost test; pass 2: the ghost test, last (it leaves ghost IDs behind).
   with_budget ./gradlew :e2e:connectedDebugAndroidTest \
     -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
+    -Pandroid.testInstrumentationRunnerArguments.waitScale="$E2E_WAIT_SCALE" \
     -Pandroid.testInstrumentationRunnerArguments.notClass="$GHOST_CLASS" "$@" || status=$?
   for f in "$RESULTS_DIR"/debug/*.xml; do [ -f "$f" ] && cp "$f" "$MERGED/1-$(basename "$f")"; done
   with_budget ./gradlew :e2e:connectedDebugAndroidTest \
     -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
+    -Pandroid.testInstrumentationRunnerArguments.waitScale="$E2E_WAIT_SCALE" \
     -Pandroid.testInstrumentationRunnerArguments.class="$GHOST_CLASS" "$@" || status=$?
   for f in "$RESULTS_DIR"/debug/*.xml; do [ -f "$f" ] && cp "$f" "$MERGED/2-$(basename "$f")"; done
 fi
