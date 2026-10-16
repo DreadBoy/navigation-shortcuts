@@ -107,7 +107,7 @@ jobs:
           ./gradlew --stop
 
       # Host-side evidence if the emulator dies again (run 2: emulator process vanished during provisioning):
-      # memory every 15 s for the rest of the job, uploaded with the diagnostics.
+      # memory every 10 s for the rest of the job, uploaded with the diagnostics.
       - name: Start host memory sampler
         run: |
           mkdir -p "$RUNNER_TEMP/e2e-artifacts/host"
@@ -151,15 +151,23 @@ jobs:
           disk-size: 6G
           emulator-boot-timeout: 900
           # Runs 2 and 3: the whole guest froze ~45 s after boot, when setup tapped Niagara's "Agree & Continue";
-          # QEMU kept spinning (263-314 % CPU, ~5 GB RSS, no host OOM) and exited ~40-60 s later. Host decoders and
+          # QEMU stayed busy (run 3: 263-314 % CPU, ~5 GB RSS, no host OOM) and exited ~37 s into the freeze. Host decoders and
           # guest Vulkan were already off in run 3 (props confirmed), so the remaining suspect is the host renderer.
           # -gpu software (was swiftshader_indirect): swiftshader_indirect, swangle_indirect and guest are deprecated
           # since emulator 36.4.9, which made '-gpu software' the supported software path (Lavapipe by default).
           # -feature -HardwareDecoder / -Vulkan stay (guest software codecs, no guest Vulkan; HWUI uses skiagl).
           # run-e2e.sh logs the hwcodec/vulkan props so a run shows they took effect. Details: docs/release-procedure.md.
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu software -camera-back none -feature -HardwareDecoder -feature -Vulkan
-          # Keep animations on, like the local AVD the suite was verified on.
-          disable-animations: false
+          # Run 4 (lavapipe/swangle): same freeze; thread samples showed a deadlock, not a spin: 2 s after the tap
+          # every QEMU thread incl. the vCPUs was idle except one gfxstream render thread in D state (blocked in the
+          # host kernel), while composer3 (host composition) had been the busiest guest process just before.
+          # -feature -HostComposition (attempt 5): hwcomposer composes in the guest instead of through the host
+          # render pipe (flag present in emulator 37.2.12's advancedFeatures.ini).
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu software -camera-back none -feature -HardwareDecoder -feature -Vulkan -feature -HostComposition
+          # Attempt 5: animations off for the whole CI run (set by the runner right after boot, before setup), so
+          # Niagara's onboarding transition renders a single frame instead of an animation. Nothing in the suite or
+          # setup relies on animations (UI Automator waits on objects; long-press/swipe timing is input-side).
+          # Local AVDs keep animations on.
+          disable-animations: true
           # One command: the runner runs each script line in its own `sh -c`; the emulator is killed afterwards,
           # so run-e2e.sh collects logcat and failure diagnostics itself (E2E_ARTIFACTS_DIR).
           script: bash e2e/run-e2e.sh --console=plain
