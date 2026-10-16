@@ -69,8 +69,6 @@ Order (set by the user, 2026-10-15): get an APK onto the phone as early as possi
 ---
 
 ### Open user decisions
-- **Spec scenario 5 wording:** on API 36, after `am force-stop` the widget is masked by the system until the first tap; the suite asserts this. Proposed spec update: scenario 5 uses process death (`am kill`) for "tap still launches Maps", and force-stop is "first tap restores the widget, second navigates".
-- **Widget stacks are Niagara Pro-only** (confirmed with our app; pop-up widgets too). The free-tier emulator can't build a stack, so the stack parts of scenarios 1 and 6 can't run in E2E. Recommendation: E2E uses our widget as the single custom widget; the stack swipe is checked by the user on the Pixel 10. Alternatives: Pro on the emulator (licence on a test account) or a test licence from the Niagara developer.
 - **Disk:** ~9.5 GB free after blocking Play Store self-updates in the AVD; E2E fits, but headroom is thin. Largest regenerable items not created by this project: `~/.gradle/caches/9.5.0` (5.4 GB), `~/.gradle/caches/8.11.1` (1.3 GB), system image `android-34/google_apis` (4.2 GB). Not touched without the user's go-ahead.
 
 ## v2 (do not start without explicit go-ahead)

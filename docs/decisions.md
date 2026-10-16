@@ -119,3 +119,8 @@ Adding a widget: long-press `bitpit.launcher:id/clock` → `Add Custom Widget` �
 - Named places (9 of 12 samples): `data=!4m2!3m1!1s<ftid>`, **no place coordinates** in the URL. Coordinates in the page HTML are the requester's IP viewport — never parse them. Long-press / coordinate search / dropped pin (3 of 12): `!3d<lat>!4d<lng>`.
 - **Decision for 3.4:** `!3d!4d` present → destination `lat,lng`; otherwise destination = URL-decoded `/place/` segment as a text query (this is the normal case for named places, not a fallback — the UI must not call it one). Label = segment up to the first comma; for coordinates-only, "Dropped pin" (editable).
 - Fixtures: `app/src/test/resources/maps-share-fixtures.json` (12 samples with `parser_rules`).
+
+## 2.4 Test scope decisions (user, 2026-10-16)
+
+- **Widget stacks:** E2E runs with our widget as the single custom widget (free-tier Niagara on the emulator). The stack under the notes widget (scenarios 1 and 6) is checked manually by the user on the Pixel 10 with Niagara Pro — done for 0.1.0 (swipe → tap → navigation in ~2 s).
+- **Scenario 5 (process death):** after `am force-stop`, Android 16 masks the widget until the first tap (system behaviour, nothing to fix). Ordinary process death (`am kill`) keeps the widget and the first tap navigates. The suite asserts both; the spec stays as written.
