@@ -66,6 +66,7 @@ User decision 2026-10-16: no APK goes to the user until the plan below is finish
 - [ ] 5b.1 Exploratory verifier on 0.3.0 (the build the user tested), blind to the user's reports: all flows so far, whole-screen view next to Niagara — fit with Niagara, does the screen make sense, every control visibly works, improvements. Output: bugs + suggestions with repro and screenshots.
 - [ ] 5b.2 Triage 5b.1 with the user's own 0.3.0 reports (both icon sets in the picker; white Material stadium among Sticker icons; "Save for a new widget" seemed to do nothing; one-step share sheet; Slovenian place got no icon guess; widget icons ~1.4× Niagara's; "App colours" makes every icon the same blue; colour swatches clickable but ignored outside theme-colour palettes). Record how many of the user's reports the verifier also found.
 - [ ] 5b.3 Look fixes from the triage, at least: icon size matching Niagara's default plus a size setting; per-destination colours for "App colours" (by category, stable fallback per destination); swatches only for theme-colour palettes; icon-to-label spacing and label style like Niagara's.
+- [ ] 5b.4 Icon picker also offers Niagara's 549 per-app glyphs (Slack, Spotify, YouTube, Firefox…) as an "Apps" section after the place/action icons, searchable by app name (user request 2026-10-16).
 
 ### Phase 6 — In-car flow and full suite
 - [ ] 6.1 [B] E2E scenario 6: notes widget on top of the stack, swipe to reveal, tap, Maps navigation in foreground.
