@@ -50,7 +50,7 @@ class IconsE2eTest {
 
     /**
      * Share Stožice Stadium: the guessed icon is Niagara's soccer glyph (stored as `niagara`), the picker lists only
-     * Niagara glyphs (no "Built-in …" entry for any of the 14 Material names), and the cell is drawn as a Niagara glyph.
+     * Niagara glyphs (no "Built-in …" entry for any of the 15 Material names), and the cell is drawn as a Niagara glyph.
      * Then a stored `builtin` icon (0.2.0 data) renders as its Niagara equivalent: `builtin:stadium` gives exactly the
      * soccer glyph's pixels, `builtin:home` a different Niagara glyph — colourful, not the white Material vector.
      */
@@ -60,7 +60,7 @@ class IconsE2eTest {
         maps.openPlace(STOZICE.query, STOZICE.suggestion)
         sheet.shareFromMapsPlacePage(maps)
         assertEquals(STOZICE.label, sheet.label())
-        assertTrue("guessed icon is Niagara's soccer glyph: ${sheet.iconDescription()}", sheet.iconDescription().endsWith(": cat_soccer_game"))
+        assertTrue("guessed icon is Niagara's soccer glyph: ${sheet.iconDescription()}", sheet.iconDescription().endsWith(": Soccer"))
 
         // Picker: only Niagara glyphs.
         d.waitFor(By.res(E2e.APP, "icon_button"), what = "icon button").click()
@@ -79,7 +79,7 @@ class IconsE2eTest {
         search.text = "qqqzzz"
         d.waitFor(By.res(E2e.APP, "icon_empty").text("No icons match"), what = "'No icons match'")
         search.text = "soccer"
-        d.waitFor(By.res(E2e.APP, "icon_grid").hasChild(By.desc("soccer game")), what = "soccer glyph in the picker")
+        d.waitFor(By.res(E2e.APP, "icon_grid").hasDescendant(By.desc("Soccer")), what = "soccer glyph in the picker")
         d.waitFor(By.pkg(E2e.APP).text("Cancel"), what = "picker Cancel").click()
         d.waitGone(By.res(E2e.APP, "icon_grid"), what = "picker")
 
@@ -112,7 +112,7 @@ class IconsE2eTest {
     }
 
     private fun gridDescriptions(): List<String> =
-        d.find(By.res(E2e.APP, "icon_grid"))?.children?.mapNotNull { it.contentDescription } ?: emptyList()
+        d.find(By.res(E2e.APP, "icon_grid"))?.findObjects(By.clickable(true))?.mapNotNull { it.contentDescription } ?: emptyList()
 
     /** (source, name) of the stored icon of the entry labelled [label], via the debug store dump. */
     private fun storedIcon(label: String): Pair<String, String> {
@@ -199,12 +199,12 @@ class IconsE2eTest {
     private companion object {
         val STOZICE = Places.STOZICE
 
-        /** The 14 built-in (Material) icon names → picker label of the mapped Niagara glyph (decisions 5.6). */
+        /** The 15 built-in (Material) icon names → picker label of the mapped Niagara glyph (decisions 5.6, 5b). */
         val BUILT_IN_NAMES = listOf(
-            "pin" to "location", "home" to "home", "work" to "office", "gym" to "fitness", "stadium" to "soccer game",
-            "school" to "education", "pool" to "jellyfish", "shop" to "shopping", "restaurant" to "food",
-            "cafe" to "cup", "hospital" to "health", "airport" to "air travel", "parking" to "cars",
-            "mountain" to "travel",
+            "pin" to "Location", "home" to "Home", "work" to "Office", "gym" to "Fitness", "stadium" to "Soccer",
+            "school" to "Education", "pool" to "Swimming", "shop" to "Shopping", "restaurant" to "Food",
+            "cafe" to "Coffee", "hospital" to "Health", "airport" to "Air travel", "parking" to "Cars",
+            "mountain" to "Travel", "castle" to "Castle",
         )
 
         const val MIN_CHANGED = 0.05

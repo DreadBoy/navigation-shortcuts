@@ -105,7 +105,7 @@ object IconRendering {
     }
 
     /**
-     * Pickable Niagara glyph names (`cat_*` and `act_*`, no weather, no per-app glyphs), sorted, or empty when Niagara
+     * Pickable Niagara glyph names (`cat_*`, `act_*` and per-app `app_*`, no weather), sorted, or empty when Niagara
      * is missing. Enumerated from Niagara's drawable IDs (dense per type), so glyphs added by Niagara updates appear.
      */
     fun pickableGlyphs(context: Context, session: Session): List<String> = synchronized(lock) {

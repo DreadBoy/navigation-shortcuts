@@ -84,7 +84,7 @@ class WidgetE2eTest {
         val destination = sheet.destination()
         assertTrue("destination resolved from the link: '$destination'", destination.startsWith(STOZICE.label))
         val icon = sheet.iconDescription()
-        assertTrue("icon guessed from the name: $icon", icon.endsWith("cat_soccer_game"))
+        assertTrue("icon guessed from the name: $icon", icon.endsWith(": Soccer"))
         // Step 2 is always shown: the one widget (preselected), then "+ Create new widget".
         assertEquals(listOf("Empty widget" to true, ShareSheet.CREATE_NEW to false), sheet.chooser())
         // Back returns to step 1 with everything kept.

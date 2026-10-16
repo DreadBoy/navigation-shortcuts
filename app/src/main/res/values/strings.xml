@@ -47,11 +47,14 @@
     <string name="edit_entry">Edit %1$s</string>
     <string name="delete_entry">Delete %1$s</string>
     <string name="reorder_entry">Drag to reorder %1$s</string>
-    <string name="icon_for_entry">Change icon for %1$s</string>
+    <string name="icon_for_entry">Change icon for %1$s: %2$s</string>
     <string name="no_widget_id">This widget no longer exists.</string>
     <string name="search_icons">Search icons</string>
     <string name="no_icons_match">No icons match</string>
-    <string name="builtin_icon">Built-in %1$s</string>
+    <string name="icons_current">Current icon</string>
+    <string name="icons_places">Places</string>
+    <string name="icons_more">More icons</string>
+    <string name="icons_apps">Apps</string>
     <string name="niagara_missing_icons">Niagara isn\'t installed: only built-in icons are available.</string>
 
     <!-- Share sheet -->

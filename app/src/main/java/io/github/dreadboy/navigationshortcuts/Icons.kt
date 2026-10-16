@@ -28,6 +28,7 @@ object BuiltInIcons {
         "airport" to R.drawable.ic_icon_airport,
         "parking" to R.drawable.ic_icon_parking,
         "mountain" to R.drawable.ic_icon_mountain,
+        "castle" to R.drawable.ic_icon_castle,
     )
 
     private val byName = all.toMap()
@@ -44,7 +45,7 @@ object NiagaraGlyphs {
     /**
      * Built-in concept → Niagara glyph, for every built-in icon (decisions 5.6): the name guess stores these, and
      * `builtin` refs are drawn as them while Niagara is readable. Niagara has no stadium, pool, parking or mountain
-     * glyph; those use the nearest one. Values are distinct, so the reverse ([fallbackFor]) is unambiguous.
+     * glyph; those use the nearest one; castle uses the tower of `cat_tower_defense_game` (decisions 5b). Values are distinct, so the reverse ([fallbackFor]) is unambiguous.
      */
     val forConcept: Map<String, String> = mapOf(
         BuiltInIcons.PIN to "act_location",
@@ -61,6 +62,7 @@ object NiagaraGlyphs {
         "pool" to "act_jellyfish",
         "parking" to "cat_cars",
         "mountain" to "cat_travel",
+        "castle" to "cat_tower_defense_game",
     )
 
     /**
@@ -88,15 +90,60 @@ object NiagaraGlyphs {
     /** Built-in icon used when Niagara glyph [glyphName] can't be drawn. */
     fun fallbackFor(glyphName: String): String = fallback[glyphName] ?: BuiltInIcons.PIN
 
-    /** Glyphs never offered in the picker: weather glyphs use colour attributes the packs don't define (decisions 5.2). */
+    /**
+     * Glyphs offered in the picker: `cat_*`, `act_*` and the per-app `app_*` glyphs (PLAN 5b.4). Never the weather
+     * glyphs, whose colour attributes no pack defines (decisions 5.2).
+     */
     fun isPickable(glyphName: String): Boolean =
-        (glyphName.startsWith("cat_") || glyphName.startsWith("act_")) && !glyphName.startsWith("act_weather_")
+        ((glyphName.startsWith("cat_") || glyphName.startsWith("act_")) && !glyphName.startsWith("act_weather_")) ||
+            isApp(glyphName)
+
+    /** A per-app glyph (`app_com_spotify_music`). */
+    fun isApp(glyphName: String): Boolean = glyphName.startsWith(AppGlyphNames.PREFIX)
 
     /** Glyphs that render broken in a pack (48×48 viewport with a 12,12 pivot, PLAN backlog): hidden for Sticker. */
     val brokenInSticker = setOf("act_pause_circled_48", "act_play_circled_48")
 
-    /** "cat_air_travel" → "air travel" (picker label and search text). */
-    fun displayName(glyphName: String): String = glyphName.substringAfter('_').replace('_', ' ')
+    /** Readable names where the glyph name reads oddly or the place meaning matters more (decisions 5b, E6/E22). */
+    private val names = mapOf(
+        "act_cup" to "Coffee",
+        "act_jellyfish" to "Swimming",
+        "act_organization" to "Building",
+        "act_ic_fluent_gift" to "Gift",
+        "act_two_colums" to "Two columns",
+        "act_pause_circled_48" to "Pause",
+        "act_play_circled_48" to "Play",
+        "cat_tower_defense_game" to "Castle",
+        "cat_train_simulator_game" to "Train",
+        "cat_city_building_game" to "City",
+        "cat_religious_text" to "Religion",
+        "cat_taxi_and_rideshare" to "Taxi",
+        "cat_maps_and_navigation" to "Maps",
+        "cat_vpn" to "VPN",
+    )
+
+    /**
+     * Readable name of a glyph (picker label, accessibility label, search): "cat_air_travel" → "Air travel",
+     * "cat_chess_game" → "Chess", "act_anycons_koi" → "Koi", app glyphs → the app's name ("Spotify").
+     */
+    fun displayName(glyphName: String): String {
+        names[glyphName]?.let { return it }
+        if (isApp(glyphName)) return AppGlyphNames.name(glyphName)
+        val words = glyphName.substringAfter('_').removePrefix("anycons_").removeSuffix("_game")
+        return words.replace('_', ' ').replaceFirstChar { it.uppercaseChar() }
+    }
+}
+
+/** Readable names of stored icons, for accessibility labels (E22): "Home", "Air travel", "Spotify". */
+object IconNames {
+    fun readable(icon: IconRef): String = when (icon.source) {
+        IconRef.SOURCE_NIAGARA -> NiagaraGlyphs.displayName(icon.name)
+        else -> builtin(icon.name)
+    }
+
+    /** Built-in (Material) icon name → label: "pin" → "Location", "gym" → "Gym". */
+    fun builtin(name: String): String =
+        if (name == BuiltInIcons.PIN) "Location" else name.replaceFirstChar { it.uppercaseChar() }
 }
 
 /**
@@ -125,13 +172,13 @@ object IconGuess {
     private val words: Map<String, String> = buildMap {
         fun add(concept: String, vararg ws: String) = ws.forEach { put(it, concept) }
         add("work", "work", "office", "sluzba", "pisarna", "podjetje", "doo")
-        add("gym", "gym", "fitness", "fitnes", "fitnesa", "sport", "sporta", "sportu")
+        add("gym", "gym", "fitness", "fitnes", "fitnesa", "sport", "sporta", "sportu", "sports")
         add("stadium", "stadium", "stadion", "stadiona", "stadionu", "stadionom")
         add("pool", "pool", "bazen", "bazena", "bazenu", "bazeni", "bazenom")
         add("school", "school", "sola", "sole", "soli", "solah", "solam", "solama", "solami")
         add(
             "shop", "shop", "market", "supermarket", "hipermarket", "tus", "mercator", "spar", "eurospar",
-            "interspar", "hofer", "lidl",
+            "interspar", "hofer", "lidl", "shopping", "mall", "btc", "citypark", "qlandia", "europark",
         )
         add("restaurant", "pizza")
         add("cafe", "cafe", "coffee")
@@ -140,6 +187,11 @@ object IconGuess {
             "mountain", "mountain", "hut", "gora", "gore", "gori", "goro", "hrib", "hriba", "hribu", "koca", "koce",
             "koci", "koco", "planina", "planine", "planini", "planino",
         )
+        // Not "grad" inside other words: Gradec, Slovenj Gradec, Gradišče, gradnja, gradbeno podjetje.
+        add(
+            "castle", "castle", "castello", "schloss", "burg", "fortress", "grad", "grada", "gradu", "gradom",
+            "gradovi", "dvorec", "dvorca", "dvorcu", "trdnjava", "trdnjave", "trdnjavi", "trdnjavo",
+        )
     }
 
     /** Word stems (word must start with one; long or distinctive enough not to hit street names) → concept. */
@@ -147,7 +199,7 @@ object IconGuess {
         "sportn" to "gym", "fitnes" to "gym", "telovadnic" to "gym",
         "kopalisc" to "pool", "swimming" to "pool",
         "fakultet" to "school", "gimnazij" to "school",
-        "trgovin" to "shop",
+        "trgovin" to "shop", "nakupovaln" to "shop",
         "restavracij" to "restaurant", "restaurant" to "restaurant", "gostiln" to "restaurant",
         "picerij" to "restaurant", "pizzeri" to "restaurant",
         "kavarn" to "cafe", "kafic" to "cafe",
@@ -161,6 +213,9 @@ object IconGuess {
      * (Cankarjev dom, Kulturni dom, Gasilski dom, Študentski dom, Dom starejših občanov, Triglavski dom).
      */
     private val homeOnly = setOf("home", "dom", "doma", "domov")
+
+    /** Words that may accompany a [homeOnly] word: "Moj dom", "My home", "Home sweet home" are still home. */
+    private val homeExtras = setOf("moj", "moja", "moje", "nas", "nasa", "nase", "my", "our", "sweet")
 
     /**
      * Words after which a keyword is a street name, not the place (Gimnazijska cesta, Športna ulica, Pot na Goro):
@@ -184,23 +239,33 @@ object IconGuess {
 
     /** Lowercase, diacritics removed ("Športno društvo" → "sportno drustvo"). */
     fun normalize(text: String): String =
-        Normalizer.normalize(text.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+        Normalizer.normalize(text.lowercase(Locale.ROOT), Normalizer.Form.NFD).replace(combiningMarks, "")
+
+    private val combiningMarks = Regex("\\p{Mn}+")
 
     /** The concept (built-in icon name) for [label], else for [destination], else [BuiltInIcons.PIN]. */
     fun concept(label: String, destination: String = ""): String =
-        conceptIn(label) ?: conceptIn(destination) ?: BuiltInIcons.PIN
+        conceptIn(label, address = false) ?: conceptIn(destination, address = true) ?: BuiltInIcons.PIN
 
     private fun tokens(text: String): List<String> =
         // "d.o.o." splits into d, o, o: join it back into one word first.
         normalize(text).replace(Regex("\\bd\\.\\s*o\\.\\s*o\\b\\.?"), " doo ")
             .split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
 
-    private fun conceptIn(text: String): String? {
+    /**
+     * In an [address], a keyword followed by a house number or after a postcode is a village or town name ("Grad 12,
+     * 9264 Grad", "Planina 5", "6232 Planina"), not the place itself.
+     */
+    private fun conceptIn(text: String, address: Boolean): String? {
         val tokens = tokens(text)
-        if (tokens.size == 1 && tokens[0] in homeOnly) return "home"
+        val homeWords = tokens.filterNot { it in homeExtras }.toSet()
+        if (homeWords.size == 1 && homeWords.first() in homeOnly) return "home"
         for ((i, token) in tokens.withIndex()) {
             val next = tokens.getOrNull(i + 1)
             if (next in streetWords) continue
+            if (address && (next?.all(Char::isDigit) == true || tokens.getOrNull(i - 1)?.let(::isPostcode) == true)) {
+                continue
+            }
             if (i >= 2 && tokens[i - 1] == "na" && tokens[i - 2] in streetWords) continue
             if (next != null) {
                 phrases.firstOrNull { (a, b) -> token.startsWith(a) && next.startsWith(b) }?.let { return it.third }
@@ -211,6 +276,8 @@ object IconGuess {
         }
         return null
     }
+
+    private fun isPostcode(token: String) = token.length == 4 && token.all(Char::isDigit)
 
     fun guess(label: String, destination: String = ""): IconRef = refFor(concept(label, destination))
 
