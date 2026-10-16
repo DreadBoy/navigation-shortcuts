@@ -12,19 +12,28 @@
 #        ANDROID_SERIAL  device to use when several are connected (also honoured by Gradle)
 #        FORCE_SETUP=1 always run setup-emulator.sh
 #        GEO_LNG/GEO_LAT mock location (default Ljubljana 14.5058 / 46.0569, same as setup-emulator.sh)
-#        ANDROID_HOME  SDK (default ~/Library/Android/sdk)
-# Exit:  0 = all tests passed; non-zero = boot/setup/build/test failure.
+#        ANDROID_HOME  SDK (else ANDROID_SDK_ROOT, else ~/Library/Android/sdk on macOS, ~/Android/Sdk elsewhere)
+#        E2E_TIMEOUT   overall limit in seconds for the Gradle part (build/install + both test passes); default 2700
+#        E2E_ARTIFACTS_DIR  if set: logcat of the whole run is written there, and on failure also a final screenshot,
+#                      a uiautomator dump, `dumpsys activity activities`, the suite's own screenshots and the
+#                      emulator log (when this script booted the emulator)
+# Exit:  0 = all tests passed; non-zero = boot/setup/build/test failure (124 = E2E_TIMEOUT hit).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
-ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+case "$(uname -s)" in Darwin) DEFAULT_SDK="$HOME/Library/Android/sdk" ;; *) DEFAULT_SDK="$HOME/Android/Sdk" ;; esac
+ANDROID_HOME="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$DEFAULT_SDK}}"
 export ANDROID_HOME
 ADB="$ANDROID_HOME/platform-tools/adb"
 EMULATOR="$ANDROID_HOME/emulator/emulator"
 AVD="${AVD:-navshort-e2e}"
 GEO_LNG="${GEO_LNG:-14.5058}"; GEO_LAT="${GEO_LAT:-46.0569}"
 SETUP_MARKER=/data/local/tmp/navshort-e2e-setup-done
+E2E_TIMEOUT="${E2E_TIMEOUT:-2700}"
+ARTIFACTS="${E2E_ARTIFACTS_DIR:-}"
+EMULATOR_LOG="${TMPDIR:-/tmp}/navshort-emulator.log"
+E2E_PACKAGE=io.github.dreadboy.navigationshortcuts.e2e
 
 log() { echo "[run-e2e] $*"; }
 die() { echo "[run-e2e] ERROR: $*" >&2; exit 1; }
@@ -36,6 +45,31 @@ if [ -z "${NIAGARA_APK:-}" ]; then
   esac
 fi
 
+# ---------------------------------------------------------------- diagnostics (E2E_ARTIFACTS_DIR)
+LOGCAT_PID=""
+BOOTED_HERE=""
+# shellcheck disable=SC2329  # invoked by the EXIT trap
+collect() {
+  local rc=$?
+  set +eu
+  [ -n "$LOGCAT_PID" ] && { kill "$LOGCAT_PID" 2>/dev/null; wait "$LOGCAT_PID" 2>/dev/null; }
+  if [ -n "$ARTIFACTS" ] && [ "$rc" != 0 ]; then
+    mkdir -p "$ARTIFACTS"
+    log "exit $rc: collecting diagnostics into $ARTIFACTS"
+    [ -n "$BOOTED_HERE" ] && [ -f "$EMULATOR_LOG" ] && cp "$EMULATOR_LOG" "$ARTIFACTS/"
+    if [ -n "$ANDROID_SERIAL" ]; then
+      a exec-out screencap -p > "$ARTIFACTS/final-screen.png" 2>/dev/null
+      a shell uiautomator dump /sdcard/navshort-final-ui.xml >/dev/null 2>&1 \
+        && a pull /sdcard/navshort-final-ui.xml "$ARTIFACTS/final-ui.xml" >/dev/null 2>&1
+      a shell dumpsys activity activities > "$ARTIFACTS/dumpsys-activities.txt" 2>/dev/null
+      # Screenshots the suite saves itself (ConfigE2eTest.saveScreenshot -> the test APK's external files dir).
+      a pull "/sdcard/Android/data/$E2E_PACKAGE/files/screenshots" "$ARTIFACTS/test-screenshots" >/dev/null 2>&1
+    fi
+  fi
+  return "$rc"
+}
+trap collect EXIT
+
 # ---------------------------------------------------------------- device
 devices() { "$ADB" devices | awk 'NR>1 && $2=="device" {print $1}'; }
 if [ -z "${ANDROID_SERIAL:-}" ]; then
@@ -44,10 +78,11 @@ if [ -z "${ANDROID_SERIAL:-}" ]; then
   if [ "$n" -eq 0 ]; then
     log "no device: booting AVD '$AVD' headless"
     nohup "$EMULATOR" -avd "$AVD" -no-window -no-boot-anim -no-snapshot -no-audio \
-      > "${TMPDIR:-/tmp}/navshort-emulator.log" 2>&1 &
+      > "$EMULATOR_LOG" 2>&1 &
+    BOOTED_HERE=1
     t0=$(date +%s)
     until [ -n "$(devices)" ]; do
-      [ $(( $(date +%s) - t0 )) -lt 180 ] || die "emulator did not come online in 180 s (log: ${TMPDIR:-/tmp}/navshort-emulator.log)"
+      [ $(( $(date +%s) - t0 )) -lt 180 ] || die "emulator did not come online in 180 s (log: $EMULATOR_LOG)"
       sleep 2
     done
   fi
@@ -62,6 +97,16 @@ until [ "$(a shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; 
   sleep 2
 done
 log "device $ANDROID_SERIAL booted"
+if [ -n "$ARTIFACTS" ]; then
+  mkdir -p "$ARTIFACTS"
+  # adb itself in the background (not the `a` function, whose subshell would leave adb running when killed).
+  "$ADB" -s "$ANDROID_SERIAL" logcat -v threadtime > "$ARTIFACTS/logcat.txt" 2>&1 &
+  LOGCAT_PID=$!
+  log "logcat -> $ARTIFACTS/logcat.txt"
+fi
+# Play Store self-updates kill Maps mid-run and grow the AVD (decisions 1.2); idempotent, also in setup-emulator.sh.
+a shell pm disable-user --user 0 com.android.vending >/dev/null 2>&1 || log "could not disable the Play Store"
+a shell settings put global auto_update 0 >/dev/null 2>&1 || true
 a shell svc power stayon true
 a shell input keyevent KEYCODE_WAKEUP
 a shell wm dismiss-keyguard >/dev/null 2>&1 || true
@@ -86,6 +131,34 @@ a emu geo fix "$GEO_LNG" "$GEO_LAT" >/dev/null || die "geo fix failed (not an em
 log "mock location lng=$GEO_LNG lat=$GEO_LAT"
 
 cd "$ROOT"
+
+# Runs a command within what is left of the E2E_TIMEOUT budget: GNU timeout/gtimeout when present, else a watchdog.
+DEADLINE=$(( $(date +%s) + E2E_TIMEOUT ))
+with_budget() {
+  local left rc=0 t pid
+  left=$(( DEADLINE - $(date +%s) ))
+  if [ "$left" -le 0 ]; then log "ERROR: E2E_TIMEOUT (${E2E_TIMEOUT}s) used up, not running: $*"; return 124; fi
+  t=$(command -v timeout || command -v gtimeout || true)
+  if [ -n "$t" ]; then
+    "$t" -k 30 "$left" "$@" || rc=$?
+  else
+    "$@" &
+    pid=$!
+    ( while kill -0 "$pid" 2>/dev/null; do
+        if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+          kill -TERM "$pid" 2>/dev/null
+          for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || exit 0; sleep 1; done
+          kill -KILL "$pid" 2>/dev/null; exit 0
+        fi
+        sleep 2
+      done ) &
+    wait "$pid" || rc=$?
+    [ "$rc" != 0 ] && [ "$(date +%s)" -ge "$DEADLINE" ] && rc=124
+  fi
+  [ "$rc" = 124 ] && log "ERROR: timed out after E2E_TIMEOUT (${E2E_TIMEOUT}s): $*"
+  return "$rc"
+}
+
 RESULTS_DIR="$ROOT/e2e/build/outputs/androidTest-results/connected"
 MERGED="$ROOT/e2e/build/outputs/run-e2e-results"
 # Drop results of earlier runs so a build failure can't print a stale summary.
@@ -100,17 +173,17 @@ GHOST_CLASS=io.github.dreadboy.navigationshortcuts.e2e.GhostWidgetE2eTest
 # app is (re)installed, a running Niagara can keep a stale provider cache and show "Problem loading widget" for a
 # newly placed widget (PLAN backlog). The test task below re-installs the same APKs with `install -r`, which is fine.
 a uninstall "$APP_ID" >/dev/null 2>&1 && log "uninstalled $APP_ID (clears ghost widget IDs)" || true
-./gradlew :app:installDebug :e2e:installDebug "$@" || status=$?
+with_budget ./gradlew :app:installDebug :e2e:installDebug "$@" || status=$?
 if [ "$status" = 0 ]; then
   a shell am force-stop bitpit.launcher
   log "Niagara force-stopped after install"
   # Keep the APKs installed afterwards so the widget and app stay usable for manual checks.
   # Pass 1: everything except the ghost test; pass 2: the ghost test, last (it leaves ghost IDs behind).
-  ./gradlew :e2e:connectedDebugAndroidTest \
+  with_budget ./gradlew :e2e:connectedDebugAndroidTest \
     -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
     -Pandroid.testInstrumentationRunnerArguments.notClass="$GHOST_CLASS" "$@" || status=$?
   for f in "$RESULTS_DIR"/debug/*.xml; do [ -f "$f" ] && cp "$f" "$MERGED/1-$(basename "$f")"; done
-  ./gradlew :e2e:connectedDebugAndroidTest \
+  with_budget ./gradlew :e2e:connectedDebugAndroidTest \
     -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
     -Pandroid.testInstrumentationRunnerArguments.class="$GHOST_CLASS" "$@" || status=$?
   for f in "$RESULTS_DIR"/debug/*.xml; do [ -f "$f" ] && cp "$f" "$MERGED/2-$(basename "$f")"; done

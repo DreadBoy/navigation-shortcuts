@@ -14,7 +14,7 @@ SERIAL=""
 if [ "${1:-}" = "-s" ]; then SERIAL="$2"; shift 2; fi
 APK="${1:-$(cd "$(dirname "$0")" && pwd)/../../vendor/niagara.apk}"
 [ -f "$APK" ] || APK="$(cd "$(dirname "$0")/.." && pwd)/vendor/niagara.apk"
-ADB="${ADB:-${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb}"
+ADB="${ADB:-${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}/platform-tools/adb}"
 GEO_LNG="${GEO_LNG:-14.5058}"; GEO_LAT="${GEO_LAT:-46.0569}"
 NIAGARA=bitpit.launcher
 NIAGARA_HOME=bitpit.launcher/.ui.HomeActivity
@@ -53,6 +53,10 @@ a wait-for-device
 for i in $(seq 1 180); do [ "$(a shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && break; sleep 1; done
 [ "$(a shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || die "device not booted"
 log "booted: $(a shell getprop ro.build.fingerprint | tr -d '\r')"
+# Play Store off as early as possible: its self-update (~3 min after first boot) restarts GMS, kills Maps and
+# grows the AVD's userdata (decisions 1.2). Idempotent; Maps keeps working.
+if a shell pm disable-user --user 0 com.android.vending >/dev/null 2>&1; then log "Play Store disabled"; else log "could not disable the Play Store"; fi
+a shell settings put global auto_update 0
 a shell settings put secure immersive_mode_confirmations confirmed   # suppress "Viewing full screen" cling
 a shell svc power stayon true
 a shell input keyevent KEYCODE_WAKEUP
