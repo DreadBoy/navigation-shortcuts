@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug builds only: E2E preconditions and store inspection (DebugStoreReceiver). Not in release. -->
+        <receiver
+            android:name=".DebugStoreReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.github.dreadboy.navigationshortcuts.debug.DUMP_STORE" />
+                <action android:name="io.github.dreadboy.navigationshortcuts.debug.SET_ICON" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

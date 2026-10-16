@@ -22,18 +22,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Shows an [IconRef] in an ImageView: the built-in drawable at once, the Niagara bitmap in [style] when drawn. */
+/**
+ * Shows an [IconRef] in an ImageView as the Niagara bitmap in [style] (also for `builtin` refs, decisions 5.6), or the
+ * built-in Material drawable when Niagara is missing or the glyph can't be drawn. Empty until then, so no Material
+ * icon flashes up while Niagara is readable.
+ */
 object IconImages {
     fun bind(view: ImageView, scope: CoroutineScope, icon: IconRef, style: AnyconSettings, seedKey: String, sizePx: Int) {
-        view.tag = BindTag(icon, style, seedKey)
-        view.setImageResource(IconResolver.drawableRes(icon))
-        if (icon.source != IconRef.SOURCE_NIAGARA) return
-        val tag = view.tag
+        val tag = BindTag(icon, style, seedKey)
+        view.tag = tag
+        view.setImageDrawable(null)
         scope.launch {
             val bitmap = withContext(Dispatchers.Default) {
-                IconRendering.draw(IconRendering.session(view.context), icon, style, sizePx, seedKey).bitmap
+                try {
+                    IconRendering.draw(IconRendering.session(view.context), icon, style, sizePx, seedKey).bitmap
+                } catch (e: Exception) {
+                    null
+                }
             }
-            if (bitmap != null && view.tag == tag) view.setImageBitmap(bitmap)
+            if (view.tag != tag) return@launch
+            if (bitmap != null) view.setImageBitmap(bitmap) else view.setImageResource(IconResolver.drawableRes(icon))
         }
     }
 
@@ -41,8 +49,8 @@ object IconImages {
 }
 
 /**
- * Icon picker for the share sheet and the config screen (decisions 5.5): Niagara's category and action glyphs drawn in
- * the widget's [style] (searchable by name), then the built-in set, which is the only set when Niagara is missing.
+ * Icon picker for the share sheet and the config screen (decisions 5.5/5.6): Niagara's category and action glyphs drawn
+ * in the widget's [style] (searchable by name) while Niagara is readable; otherwise only the built-in Material set.
  */
 object IconPicker {
     private data class Item(val ref: IconRef, val label: String, val description: String)
@@ -61,15 +69,28 @@ object IconPicker {
                 session.niagaraInstalled to IconRendering.pickableGlyphs(activity, session)
             }
             if (activity.isFinishing || activity.isDestroyed) return@launch
+            val niagara = installed && glyphs.isNotEmpty()
             val hidden = if (style.style is AnyconStyle.Sticker) NiagaraGlyphs.brokenInSticker else emptySet()
-            val items = glyphs.filterNot { it in hidden }.map {
-                val name = NiagaraGlyphs.displayName(it)
-                Item(IconRef.niagara(it), name, name)
-            } + BuiltInIcons.all.map { (name, _) ->
-                Item(IconRef.builtin(name), name, activity.getString(R.string.builtin_icon, name))
+            val items = if (niagara) {
+                glyphs.filterNot { it in hidden }.map {
+                    val name = NiagaraGlyphs.displayName(it)
+                    Item(IconRef.niagara(it), name, name)
+                }
+            } else {
+                BuiltInIcons.all.map { (name, _) ->
+                    Item(IconRef.builtin(name), name, activity.getString(R.string.builtin_icon, name))
+                }
             }
-            build(activity, scope, style, seedKey, current, items, installed && glyphs.isNotEmpty(), onPick)
+            build(activity, scope, style, seedKey, highlighted(current, niagara), items, niagara, onPick)
         }
+    }
+
+    /** The picker entry shown for [current]: its Niagara equivalent while Niagara is readable, else its built-in icon. */
+    private fun highlighted(current: IconRef?, niagara: Boolean): IconRef? = when {
+        current == null -> null
+        niagara -> NiagaraGlyphs.glyphsFor(current).firstOrNull()?.let(IconRef::niagara)
+        current.source == IconRef.SOURCE_BUILTIN -> current
+        else -> IconRef.builtin(NiagaraGlyphs.fallbackFor(current.name))
     }
 
     private fun build(

@@ -83,7 +83,7 @@ class WidgetE2eTest {
         assertEquals("label prefilled from the shared place", STOZICE.label, sheet.label())
         val destination = sheet.destination()
         assertTrue("destination resolved from the link: '$destination'", destination.startsWith(STOZICE.label))
-        assertTrue("icon guessed from the name: ${sheet.iconDescription()}", sheet.iconDescription().endsWith("stadium"))
+        assertTrue("icon guessed from the name: ${sheet.iconDescription()}", sheet.iconDescription().endsWith("cat_soccer_game"))
         assertFalse("widget chooser hidden with exactly one widget", sheet.isChooserShown())
         sheet.tapAdd()
 

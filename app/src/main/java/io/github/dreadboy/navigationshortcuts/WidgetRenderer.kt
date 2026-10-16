@@ -13,7 +13,8 @@ import android.widget.RemoteViews
 /**
  * Builds the widget's RemoteViews from its stored config (decisions 0.3, 3.4): a vertical stack of rows, each a
  * horizontal row of equally weighted cells, so the grid fills the launcher's slot whatever its size.
- * Niagara icons are bitmaps in the widget's style (decisions 5.5); built-in icons and every failure use the vector.
+ * Icons are Niagara bitmaps in the widget's style (decisions 5.5/5.6), also for `builtin` refs; the Material vector
+ * only when Niagara is missing or a glyph can't be drawn.
  */
 object WidgetRenderer {
     private const val TAG = "NavShortIcons"
@@ -43,10 +44,12 @@ object WidgetRenderer {
         return root
     }
 
-    /** Bitmaps for the visible Niagara icons (index → bitmap); missing index = built-in fallback. */
+    /**
+     * Niagara bitmaps for the visible icons (index → bitmap), `builtin` refs included: while Niagara is readable every
+     * icon is a Niagara glyph (decisions 5.6). Missing index = built-in Material fallback.
+     */
     private fun drawIcons(context: Context, appWidgetId: Int, config: WidgetConfig): Map<Int, Bitmap> {
-        val visible = config.entries.take(config.capacity).withIndex()
-            .filter { it.value.icon.source == IconRef.SOURCE_NIAGARA }
+        val visible = config.entries.take(config.capacity).withIndex().toList()
         if (visible.isEmpty()) return emptyMap()
         val session = try {
             IconRendering.session(context)
@@ -54,6 +57,7 @@ object WidgetRenderer {
             Log.w(TAG, "icon session failed, using built-in icons", e)
             return emptyMap()
         }
+        if (!session.niagaraInstalled) return emptyMap()
         val sizePx = IconRendering.cellSizePx(visible.size)
         val result = HashMap<Int, Bitmap>()
         val glyphMs = ArrayList<Double>()

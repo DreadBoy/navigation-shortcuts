@@ -4,8 +4,9 @@ import androidx.annotation.DrawableRes
 import java.util.Locale
 
 /**
- * Built-in Material-style icon set (PLAN 3.2): the fallback for Niagara glyphs, the icons for concepts Niagara has no
- * glyph for (stadium, pool, mountain, parking) and the only set when Niagara is missing. Direct `R.drawable`
+ * Built-in Material-style icon set (PLAN 3.2): used only when Niagara's glyphs can't be read (decisions 5.6) — the
+ * picker's only set when Niagara is missing and the fallback whenever a Niagara glyph can't be drawn. While Niagara is
+ * readable, `builtin` refs are drawn as their Niagara equivalent ([NiagaraGlyphs.forConcept]). Direct `R.drawable`
  * references (never getIdentifier), so release resource shrinking keeps every icon. Order = picker order.
  */
 object BuiltInIcons {
@@ -34,11 +35,16 @@ object BuiltInIcons {
 }
 
 /**
- * Niagara Anycon glyph names (resource `ic_ip_<name>` in `bitpit.launcher`, decisions 5.2/5.5) that the name guess
- * uses, and the built-in icon each falls back to when the glyph can't be loaded.
+ * Niagara Anycon glyph names (resource `ic_ip_<name>` in `bitpit.launcher`, decisions 5.2/5.5/5.6) that the name guess
+ * uses, the glyph each built-in icon is drawn as while Niagara is readable, and the built-in icon each glyph falls back
+ * to when it can't be loaded.
  */
 object NiagaraGlyphs {
-    /** Built-in concept → Niagara glyph. Concepts missing here have no Niagara glyph (stadium, pool, mountain, parking). */
+    /**
+     * Built-in concept → Niagara glyph, for every built-in icon (decisions 5.6): the name guess stores these, and
+     * `builtin` refs are drawn as them while Niagara is readable. Niagara has no stadium, pool, parking or mountain
+     * glyph; those use the nearest one. Values are distinct, so the reverse ([fallbackFor]) is unambiguous.
+     */
     val forConcept: Map<String, String> = mapOf(
         BuiltInIcons.PIN to "act_location",
         "home" to "cat_home",
@@ -50,7 +56,21 @@ object NiagaraGlyphs {
         "cafe" to "act_cup",
         "hospital" to "cat_health",
         "airport" to "cat_air_travel",
+        "stadium" to "cat_soccer_game",
+        "pool" to "act_jellyfish",
+        "parking" to "cat_cars",
+        "mountain" to "act_sun_horizon",
     )
+
+    /**
+     * Niagara glyphs to try for [icon], best first: a `niagara` ref's own glyph, then its concept's glyph (a renamed
+     * glyph still shows a Niagara icon); a `builtin` (or unknown) ref's equivalent glyph, else the location pin.
+     */
+    fun glyphsFor(icon: IconRef): List<String> = when (icon.source) {
+        IconRef.SOURCE_NIAGARA -> listOfNotNull(icon.name, forConcept[fallbackFor(icon.name)])
+        IconRef.SOURCE_BUILTIN -> listOfNotNull(forConcept[icon.name], forConcept[BuiltInIcons.PIN])
+        else -> listOfNotNull(forConcept[BuiltInIcons.PIN])
+    }.distinct()
 
     private val fallback: Map<String, String> = forConcept.entries.associate { (concept, glyph) -> glyph to concept } +
         mapOf(
@@ -61,8 +81,6 @@ object NiagaraGlyphs {
             "cat_children" to "school",
             "cat_doctor_game" to "hospital",
             "cat_flight_simulator_game" to "airport",
-            "cat_cars" to "parking",
-            "cat_soccer_game" to "stadium",
             "cat_maps_and_navigation" to BuiltInIcons.PIN,
         )
 
@@ -134,7 +152,7 @@ object IconGuess {
 
     fun guess(text: String): IconRef = refFor(concept(text))
 
-    /** Niagara glyph for [concept] if Niagara has one, else the built-in icon. */
+    /** Niagara glyph for [concept] (every concept has one, decisions 5.6); drawn as Material while Niagara is missing. */
     fun refFor(concept: String): IconRef =
         NiagaraGlyphs.forConcept[concept]?.let { IconRef.niagara(it) } ?: IconRef.builtin(concept)
 }

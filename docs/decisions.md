@@ -273,3 +273,33 @@ Emulator `navshort-e2e` (API 36, arm64), Niagara 1.16.33 free, debug build; timi
 - **Bitmap budget**: icon bitmaps are at most **128 px** and together at most **400 KiB per widget update** (`IconRendering.cellSizePx`: `min(128, sqrt(409600 / (4·n)))`): 1–6 Niagara cells → 128 px (6 × 64 KiB = 384 KiB), 12 cells → 92 px (**406,272 bytes measured**), 36 cells (6×6) → **53 px, 404,496 bytes ≈ 39 % of a 1 MB binder buffer**. Measured `RemoteViews` parcel sizes stay small regardless (2,400 B empty 1×4, 2,984 B with 2 bitmaps, 6,952 B with 12): bitmaps above 16 KB are written as ashmem blobs, so what binds us in practice is the platform's widget bitmap limit (1.5 × screen bytes, ~15 MB on this 1080×2400 device); we stay at < 3 % of it.
 - **Release build**: R8 + resource shrinking. Nothing of ours is looked up by name (built-in icons via `R.drawable`; Niagara's resources belong to another package, so `getIdentifier` there is unaffected by our shrinking); `kotlinx.serialization` keeps the `AnyconSettings`/`AnyconStyle` serializers through its bundled R8 rules — verified by the release E2E run (style change saved and re-read) and the 0.2.0 → 0.3.0 upgrade below. Release APK: **743,971 bytes** (0.2.0: 498,342; the growth is `:anycons`, androidx.core and the config UI; classes.dex 368 KB → 597 KB), sha256 `3842609b…73ffb9ae`, signer cert `3adccc33…2013d` (unchanged). Release E2E: 13/13 green (12 + ghost pass).
 - **Upgrade 0.2.0 → 0.3.0**: verified on the emulator: 0.2.0 (`dist/`) installed, Stožice Stadium shared into a placed widget (built-in stadium icon) → `adb install -r` of the 0.3.0 release → the widget re-rendered on the package-replace update with the same cell (built-in icon, label, 3 empty cells) and a tap started navigation with the stored destination. Its config screen then opened with the default Sticker · Coral style, and Niagara-glyph entries added there rendered in it.
+
+## 5.6 Material icons only as Niagara fallback (v0.3.1)
+
+User report on the Pixel (0.3.0, Niagara installed): the picker listed Niagara glyphs *and* the 14 Material icons, and the name guess picked Material for stadium/pool/parking/mountain, so a plain white cell sat among Sticker cells. Decision: while Niagara's glyphs are readable, no Material icon is shown anywhere.
+
+- **Picker**: Niagara glyphs only while Niagara is readable; only the 14 Material icons (with the existing "Niagara isn't installed" note) when not.
+- **Every built-in concept has a Niagara glyph** (checked against all 891 glyphs of 1.16.33 and visually in the picker); the name guess always stores `{source: niagara}`:
+
+  | built-in | Niagara glyph | note |
+  |---|---|---|
+  | pin | `act_location` | |
+  | home | `cat_home` | |
+  | work | `cat_office` | |
+  | gym | `cat_fitness` | |
+  | stadium | `cat_soccer_game` | no stadium glyph; soccer ball |
+  | school | `cat_education` | |
+  | pool | `act_jellyfish` | no swim/pool glyph; nearest water glyph (alternative `act_anycons_koi`, a mascot) |
+  | shop | `cat_shopping` | |
+  | restaurant | `cat_food` | |
+  | cafe | `act_cup` | |
+  | hospital | `cat_health` | |
+  | airport | `cat_air_travel` | |
+  | parking | `cat_cars` | no parking glyph; car |
+  | mountain | `act_sun_horizon` | no mountain glyph; sun over a horizon (landscape) |
+
+  Glyphs are distinct, so the reverse mapping (Niagara glyph → Material when Niagara is missing) stays unambiguous.
+- **Stored `builtin` refs (0.2.0 data, or picked while Niagara was missing) are mapped at render time**, not migrated: drawn as the glyph above while Niagara is readable, as their own Material icon otherwise. Render-time mapping keeps the stored data as the user (or 0.2.0) wrote it, needs no migration code or version flag, and still does the right thing when Niagara comes and goes. The picker highlights the mapped glyph for such an entry.
+- **Fallback chain per cell**: a `niagara` ref tries its own glyph, then its concept's glyph (a glyph renamed by a Niagara update still shows a Niagara icon); a `builtin` ref tries its glyph, then `act_location`. Only if none is drawable (Niagara missing/unreadable, render failure) the Material icon is used — never a blank cell. In our screens the icon view stays empty until the bitmap arrives (a few ms), so no Material icon flashes up first.
+- **Verification**: unit tests (mapping complete/distinct/pickable, glyph files exist in the real APK, guess → Niagara for every concept, fallback both ways); `IconsE2eTest` on the AVD with real Niagara + Maps share (stadium → `cat_soccer_game` stored as `niagara`; picker has no "Built-in …" entry for any of the 14 names; a seeded `builtin:home` / `builtin:stadium` cell renders as Niagara's home / the identical soccer glyph). Niagara uninstalled by hand: picker shows only the 14 Material icons with the note, a guessed `cat_soccer_game` highlights Material "stadium"; Niagara then reinstalled and `e2e/setup-emulator.sh` re-run.
+- Debug builds get `DebugStoreReceiver` (`app/src/debug`, not in release): `am broadcast` hooks to dump the store and to seed an icon for E2E preconditions.

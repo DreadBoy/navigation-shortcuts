@@ -4,7 +4,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
+import java.io.File
 
 class IconsTest {
     /** The guessed concept (built-in name); also checks the stored reference for it. */
@@ -13,12 +15,9 @@ class IconsTest {
         assertNotNull("guessed concept '$concept' exists in the built-in set", BuiltInIcons.drawable(concept))
         val ref = IconGuess.guess(text)
         val glyph = NiagaraGlyphs.forConcept[concept]
-        if (glyph != null) {
-            assertEquals(IconRef.niagara(glyph), ref)
-            assertEquals("Niagara glyph falls back to the concept's built-in icon", concept, NiagaraGlyphs.fallbackFor(glyph))
-        } else {
-            assertEquals(IconRef.builtin(concept), ref)
-        }
+        assertNotNull("every concept has a Niagara glyph (decisions 5.6): $concept", glyph)
+        assertEquals(IconRef.niagara(glyph!!), ref)
+        assertEquals("Niagara glyph falls back to the concept's built-in icon", concept, NiagaraGlyphs.fallbackFor(glyph))
         return concept
     }
 
@@ -87,11 +86,68 @@ class IconsTest {
         assertEquals(IconRef.niagara("cat_home"), IconGuess.guess("Home"))
         assertEquals(IconRef.niagara("cat_fitness"), IconGuess.guess("Gym 24"))
         assertEquals(IconRef.niagara("act_location"), IconGuess.guess("Ljubljana Castle"))
-        // Niagara has no stadium, pool, mountain or parking glyph: built-in icons.
-        assertEquals(IconRef.builtin("stadium"), IconGuess.guess("Stožice Stadium"))
-        assertEquals(IconRef.builtin("pool"), IconGuess.guess("Bazen Tivoli"))
-        assertEquals(IconRef.builtin("mountain"), IconGuess.guess("Koča na Golici"))
-        assertEquals(IconRef.builtin("parking"), IconGuess.guess("Parking Kongresni trg"))
+        // Niagara has no stadium, pool, mountain or parking glyph: the nearest one, never a built-in ref.
+        assertEquals(IconRef.niagara("cat_soccer_game"), IconGuess.guess("Stožice Stadium"))
+        assertEquals(IconRef.niagara(NiagaraGlyphs.forConcept.getValue("pool")), IconGuess.guess("Bazen Tivoli"))
+        assertEquals(IconRef.niagara(NiagaraGlyphs.forConcept.getValue("mountain")), IconGuess.guess("Koča na Golici"))
+        assertEquals(IconRef.niagara("cat_cars"), IconGuess.guess("Parking Kongresni trg"))
+        assertEquals(IconRef.niagara("act_location"), IconGuess.refFor(BuiltInIcons.PIN))
+    }
+
+    @Test
+    fun everyBuiltInIconHasADistinctPickableNiagaraGlyph() {
+        val names = BuiltInIcons.all.map { it.first }
+        assertEquals(names.toSet(), NiagaraGlyphs.forConcept.keys)
+        val glyphs = names.map { NiagaraGlyphs.forConcept.getValue(it) }
+        assertEquals("distinct glyphs, so the reverse fallback is unambiguous", glyphs.size, glyphs.toSet().size)
+        for (name in names) {
+            val glyph = NiagaraGlyphs.forConcept.getValue(name)
+            assertTrue("$glyph pickable", NiagaraGlyphs.isPickable(glyph))
+            assertFalse("$glyph not hidden in Sticker", glyph in NiagaraGlyphs.brokenInSticker)
+            // Reverse mapping (Niagara missing): the glyph falls back to the same built-in icon.
+            assertEquals(name, NiagaraGlyphs.fallbackFor(glyph))
+            assertEquals(BuiltInIcons.drawable(name), IconResolver.drawableRes(IconRef.niagara(glyph)))
+        }
+    }
+
+    @Test
+    fun builtInRefsAreDrawnAsTheirNiagaraGlyph() {
+        for ((name, _) in BuiltInIcons.all) {
+            assertEquals(
+                listOf(NiagaraGlyphs.forConcept.getValue(name), "act_location").distinct(),
+                NiagaraGlyphs.glyphsFor(IconRef.builtin(name)),
+            )
+            // Fallback when the glyph can't be drawn: the built-in icon itself.
+            assertEquals(BuiltInIcons.drawable(name), IconResolver.drawableRes(IconRef.builtin(name)))
+        }
+        assertEquals(listOf("cat_soccer_game", "act_location"), NiagaraGlyphs.glyphsFor(IconRef.builtin("stadium")))
+        // Unknown built-in name / unknown source: Niagara's pin.
+        assertEquals(listOf("act_location"), NiagaraGlyphs.glyphsFor(IconRef.builtin("nope")))
+        assertEquals(listOf("act_location"), NiagaraGlyphs.glyphsFor(IconRef("own", "gym")))
+    }
+
+    @Test
+    fun niagaraRefsTryTheirGlyphThenTheConceptGlyph() {
+        assertEquals(listOf("cat_home"), NiagaraGlyphs.glyphsFor(IconRef.niagara("cat_home")))
+        assertEquals(listOf("act_home", "cat_home"), NiagaraGlyphs.glyphsFor(IconRef.niagara("act_home")))
+        assertEquals(listOf("cat_chess_game", "act_location"), NiagaraGlyphs.glyphsFor(IconRef.niagara("cat_chess_game")))
+    }
+
+    /**
+     * Every mapped glyph exists in the real Niagara 1.16.33 (decoded from the git-ignored vendor/niagara.apk by the
+     * :anycons tests into anycons/build/niagara-decoded). Skipped when that isn't there (e.g. CI).
+     */
+    @Test
+    fun mappedGlyphsExistInRealNiagara() {
+        val drawables = generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
+            .take(3)
+            .map { File(it, "anycons/build/niagara-decoded/res/drawable") }
+            .firstOrNull { it.isDirectory }
+        assumeTrue("decoded Niagara not found (run :anycons:testDebugUnitTest with vendor/niagara.apk)", drawables != null)
+        val glyphs = NiagaraGlyphs.forConcept.values + listOf("act_home", "act_briefcase", "cat_jobs", "cat_children")
+        for (glyph in glyphs) {
+            assertTrue("ic_ip_$glyph exists in Niagara", File(drawables, "ic_ip_$glyph.xml").isFile)
+        }
     }
 
     @Test

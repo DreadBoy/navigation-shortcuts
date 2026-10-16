@@ -69,23 +69,26 @@ object IconRendering {
     }
 
     /**
-     * Draws [icon] in [style] at [sizePx], seeded per destination by [seedKey] (the entry id). Null when the icon is
-     * not a Niagara glyph or the glyph/texture can't be loaded or drawn: the caller shows the built-in fallback.
+     * Draws [icon] in [style] at [sizePx], seeded per destination by [seedKey] (the entry id), as a Niagara glyph:
+     * its own for `niagara` refs, the equivalent for `builtin` refs ([NiagaraGlyphs.glyphsFor], decisions 5.6). Null
+     * when Niagara is missing or no candidate glyph can be loaded or drawn: the caller shows the built-in fallback.
      */
     fun draw(session: Session, icon: IconRef, style: AnyconSettings, sizePx: Int, seedKey: String): Drawn {
-        if (icon.source != IconRef.SOURCE_NIAGARA) return Drawn(null, 0.0, 0.0)
+        if (!session.niagaraInstalled) return Drawn(null, 0.0, 0.0)
         val t0 = SystemClock.elapsedRealtimeNanos()
-        val available = try {
-            session.hasGlyph(icon.name)
-        } catch (e: Exception) {
-            Log.w(TAG, "glyph ${icon.name} failed", e)
-            false
+        val glyph = NiagaraGlyphs.glyphsFor(icon).firstOrNull { name ->
+            try {
+                session.hasGlyph(name)
+            } catch (e: Exception) {
+                Log.w(TAG, "glyph $name failed", e)
+                false
+            }
         }
         val t1 = SystemClock.elapsedRealtimeNanos()
-        val bitmap = if (!available) null else try {
-            session.renderer.render(icon.name, style, sizePx, seedKey)
+        val bitmap = if (glyph == null) null else try {
+            session.renderer.render(glyph, style, sizePx, seedKey)
         } catch (e: Exception) {
-            Log.w(TAG, "render ${icon.name} failed", e)
+            Log.w(TAG, "render $glyph failed", e)
             null
         }
         val t2 = SystemClock.elapsedRealtimeNanos()
