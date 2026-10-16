@@ -341,6 +341,45 @@ Supersedes the word rules of 3.6. The user's real case — label "Športno druš
 - **Round 2 (verifier):** "dom"/"doma"/"domov"/"home" give the home icon only when they are the whole text — Cankarjev dom, Kulturni dom, Gasilski dom, Narodni dom, Študentski dom, Dom starejših občanov and Triglavski dom are not anyone's home (planinski dom → mountain and zdravstveni dom → hospital stay). Street names: a keyword is ignored when the next word is a street word (ulica, cesta, pot, trg, nabrežje, drevored, park, naselje and their case forms, ul., c.), or when it follows "<street word> na" (Pot na Goro); and a stem followed by an adjective ending (-ska, -na, -iška, -čna: Gimnazijska, Fakultetna, Bolnišnična, Gostilniška, Trgovinska) never matches. Side effect: "Športni park" in an address no longer gives the gym.
 - Avoided false positives (unit-tested): street names built on the same stems (Šolska ulica, Stadionska ulica, Letališka cesta, Bazenska pot, Kopališka ulica, Planinska cesta, Bolniška ulica, Mercatorjeva), brands/words containing short keywords (Sportina, Sparkasse, Spartak, Tušmobil, Marketing), towns (Solkan, Domžale, Kočevje, Podgorje, **Štore** — so English "store" was dropped, "solo" too). Accepted: a few town names equal a keyword (Planina, Hrib) and would give the mountain icon from an address there; the label still wins.
 
+## 5b Exploratory fixes (v0.4.0)
+
+### Widget look: measured Niagara (U, E19)
+
+Measured on the AVD (1080×2400, `wm density` 420 → 2.625 px/dp), Niagara 1.16.33 free, uiautomator bounds + screenshots:
+
+| | Niagara home screen | our widget, 0.3.x | our widget, 0.4.0 (Default) |
+|---|---|---|---|
+| app icon view | 116×116 px = **44 dp** (`icon_image_view`, favourites and tips) | cell-filling, 158 px wide (≈ 60 dp) for 1×5; ~1.4× Niagara, as the user reported | **116×116 px** |
+| visible icon | adaptive icon ~97 px of the 116 px view | Material squircle ~156 px | Sticker stamp in the 116 px view |
+| icon column | left edge **x = 121 px**, centre 179 | cells centred (first icon centre 204) | first column at **x = 120 px** (widget inset 15 px) |
+| label | to the right of the icon, gap 53 px (20 dp); cap height **29–30 px ≈ 16 sp**; white; Niagara's bundled Nunito Sans | 12 sp under the icon, cap height 23 px | 16 sp, cap height **30 px**, white, soft shadow |
+
+Niagara's own Anycons can't be measured on the free tier (an app's icon → "Change icon" → Sticker is "a Pro feature"), so the 44 dp icon view is the reference: Niagara draws app icons, Anycons included, into that view.
+
+- **Icon size setting** (per widget, config screen → "Icon size" spinner, simplest clear control): Small 36 dp (label 14 sp) / **Default (like Niagara) 44 dp** (16 sp) / Large 56 dp (16 sp). Stored as `iconSize` (`"small"|"default"|"large"`) in the widget JSON; configs without it (≤ 0.3.x) parse unchanged with Default (unit test with a literal 0.3.x JSON). The style preview shows the chosen size. A size too wide for a column of the 315 dp slot steps down (Large with 6 columns → Default), so no icon is cut.
+- **Layout**: three cell layouts (one per size, same ids), icon a fixed `size` dp with `layout_weight` inside a wrap_content column, so it **shrinks but never grows** in a short row (2+ rows in the default 80 dp slot) and stays on the start edge (`fitStart`). Icon and label are **left-aligned on the cell's start edge**: the first column lines up with Niagara's icon column (120 vs 121 px), like everything else on Niagara's home screen (clock, date, list). Side effect: the right-edge overflow of decisions 3.4 no longer reaches an icon at 1×4/1×5.
+- **Bitmaps** are drawn no larger than shown: `cellSizePx(n, targetPx)` = min(target, 128, budget) — Default 116 px for 1–7 icons, 92 px at 12, 53 px at 36; the 128 px cap and the 400 KiB budget of 5.5 are unchanged (Large is 147 px shown from a 128 px bitmap, ~15 % upscale).
+- **Label font**: Niagara uses its bundled Nunito Sans; a widget can only use system fonts unless we ship the font (OFL, ~100–300 KB) — not done; system `sans-serif` at Niagara's size and cap height. Labels ellipsize earlier than at 12 sp (1×5: "Trgovi…", "Stozic…"), like Niagara's would at that width.
+
+### App colours per destination (U/E9)
+
+"App colours" palettes (Sticker, Dots, Outline Chroma, Watercolor, Bright) get a colour per destination instead of Niagara's fallback blue: by **category from the glyph** (home → persimmon, work → azure, sport → green, food → red, café → amber, shopping → shocking pink, health → raspberry, travel → sky, school/books → purple, transport → teal, water/pool → turquoise, children → yellow, money → jade, entertainment → periwinkle, religious → lavender, nature → lime, people → magenta), any other glyph (e.g. the pin) a stable colour from a 12-colour list picked by `entryId.hashCode()`. All colours are Niagara's own palette-family key tones `accent1_0400_<family>` (1.16.33). Applied in `IconRendering.draw`, so the widget, share sheet, config list/preview and picker all show the same colour for the same destination. Two pins at different places usually differ; fitness and stadium share green (same category).
+
+### Swatches only where they apply (U/E8)
+
+The 8 swatches are labelled **"Icon colour"** and shown only when the style uses the seed colour: Material, Stellar, Outline with fill, and the "Theme colours" palettes (Sticker, Dots, Outline Chroma, Watercolor, Marble, Bright). Hidden for Coral, Opal, Marble white/black, every "App colours" palette and Outline without fill (unit test over all 34 combinations).
+
+### Empty widget, tall-grid hint, preview (E4, E3, E17)
+
+- **E4**: a widget without destinations shows one row across its width: a "+" disc (44 dp) and "Add destinations" (16 sp), like a Niagara app row; tap → the widget's config (same PendingIntent as the empty cells). Other rows stay transparent empty cells.
+- **E3**: when rows grow beyond the stored value to 2 or more, the config screen shows "More rows need a taller widget: long-press it in Niagara → Move and resize." Threshold 2 (not the sheet's 3): with 44 dp icons + 16 sp labels one row needs ~70 of the default slot's 80 dp.
+- **E17**: the style preview shows the real destinations first (up to 4) and fills with samples (home, office, fitness, shopping) only up to 4, never repeating a glyph a real destination shows (a real gym no longer appears next to the sample gym).
+
+### Share-target icon and picker preview (E21, E11)
+
+- **E21**: Maps' share grid drew our adaptive launcher icon (green disc + white pin) while its other targets are plain glyphs. The share activity now has its own adaptive icon with a transparent background and a green (#2A8C62) pin; the launcher icon is unchanged.
+- **E11**: Niagara renders the widget picker preview live from `previewLayout`, which can't run code (no Niagara glyphs). The preview now uses the real cell layout (44 dp, left-aligned, 16 sp) with three Sticker-like vectors drawn by us from Material icons (white die-cut edge, pastel gradient, #482658 line) — an approximation for the preview only; the widget itself draws Niagara's glyphs.
+
 ## Known issues
 
 - **Niagara (1.16.33 free): pinning while one of our widgets is placed gets stuck** (measured in 3.2). "+ Create new widget" → Niagara's "Add to home screen" → **Okay** → Niagara opens "Create Widget Stack?", but its transparent `AddItemActivity` stays on top and swallows every tap. Only **Back** gets out; nothing is placed and the place stays pending (it appears in the next widget the user adds). Accepted by the user as a Niagara bug (decisions 5.7); could be reported to Niagara's developer. Niagara Pro (widget stacks) may behave differently — check on the Pixel.
