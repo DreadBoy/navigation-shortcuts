@@ -61,6 +61,11 @@ android {
         }
     }
 
+    // Robolectric tests (AddDestinationBackTest) inflate the real layouts.
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -82,11 +87,13 @@ if (!releaseSigningAvailable) {
 
 dependencies {
     implementation(project(":anycons"))
+    implementation(libs.androidx.activity)
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)

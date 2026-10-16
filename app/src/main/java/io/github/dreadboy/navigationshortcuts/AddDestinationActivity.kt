@@ -1,6 +1,5 @@
 package io.github.dreadboy.navigationshortcuts
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -24,8 +23,8 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -38,7 +37,7 @@ import kotlinx.coroutines.withContext
  * icon, label and destination (Cancel / Next). Step 2 picks the widget — always shown, newest first, "not seen"
  * widgets last, "+ Create new widget" as the last row (Back / Add); a full grid grows in one tap.
  */
-class AddDestinationActivity : Activity() {
+class AddDestinationActivity : ComponentActivity() {
 
     private val scope = MainScope()
     private lateinit var store: WidgetStore
@@ -79,7 +78,12 @@ class AddDestinationActivity : Activity() {
     private var mode = Mode.ADD
     private var step = Step.DETAILS
     private var busy = false
-    private var backCallback: Any? = null
+    /** Enabled in step 2 only; disabled = default Back (closes the sheet). */
+    private val backToDetails = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            if (mode != Mode.DONE) showStep(Step.DETAILS) else finish()
+        }
+    }
     private var widgetsLoaded = false
 
     /** Set when requestPinAppWidget showed the launcher's confirmation; checked when we come back. */
@@ -101,6 +105,7 @@ class AddDestinationActivity : Activity() {
         window.setGravity(Gravity.BOTTOM)
         window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         store = WidgetStore(this)
+        onBackPressedDispatcher.addCallback(this, backToDetails)
 
         labelInput = findViewById(R.id.label_input)
         destinationInput = findViewById(R.id.destination_input)
@@ -163,15 +168,13 @@ class AddDestinationActivity : Activity() {
         updateMode()
     }
 
-    /** System Back in step 2 returns to step 1 (predictive back: no onBackPressed on targetSdk 36). */
+    /**
+     * System Back in step 2 returns to step 1. AndroidX's OnBackPressedDispatcher delivers it on every API level:
+     * through an OnBackInvokedCallback where predictive back is active (API 36 with targetSdk 36), else through
+     * onBackPressed (API 31–35; OnBackInvokedDispatcher itself is API 33+ and not used there without a manifest opt-in).
+     */
     private fun setBackToDetails(enabled: Boolean) {
-        val dispatcher = onBackInvokedDispatcher
-        (backCallback as? OnBackInvokedCallback)?.let { dispatcher.unregisterOnBackInvokedCallback(it) }
-        backCallback = null
-        if (!enabled) return
-        val callback = OnBackInvokedCallback { if (mode != Mode.DONE) showStep(Step.DETAILS) else finish() }
-        dispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
-        backCallback = callback
+        backToDetails.isEnabled = enabled
     }
 
     override fun onPause() {
