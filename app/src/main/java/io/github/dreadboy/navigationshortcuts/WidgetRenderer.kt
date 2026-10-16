@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Parcel
 import android.util.Log
 import android.widget.RemoteViews
+import kotlin.math.roundToInt
 
 /**
  * Builds the widget's RemoteViews from its stored config (decisions 0.3, 3.4): a vertical stack of rows, each a
@@ -24,6 +25,19 @@ object WidgetRenderer {
         val root = RemoteViews(context.packageName, R.layout.widget_grid)
         root.setImageViewUri(R.id.render_probe, RenderProbe.uri(context, appWidgetId, RenderProbe.nextGeneration(context, appWidgetId)))
         root.removeAllViews(R.id.grid_root)
+        if (config.entries.isEmpty()) {
+            // An empty widget shows a visible "+ Add destinations" row instead of an invisible grid (decisions 5b E4).
+            root.addView(R.id.grid_root, RemoteViews(context.packageName, R.layout.widget_row).apply {
+                addView(R.id.grid_row, addCell(context, appWidgetId))
+            })
+            for (row in 1 until config.rows) {
+                root.addView(R.id.grid_root, RemoteViews(context.packageName, R.layout.widget_row).apply {
+                    for (col in 0 until config.cols) addView(R.id.grid_row, emptyCell(context, appWidgetId, row * config.cols + col))
+                })
+            }
+            logParcelSize(appWidgetId, root)
+            return root
+        }
         for (row in 0 until config.rows) {
             val rowViews = RemoteViews(context.packageName, R.layout.widget_row)
             for (col in 0 until config.cols) {
@@ -32,7 +46,7 @@ object WidgetRenderer {
                 rowViews.addView(
                     R.id.grid_row,
                     if (entry != null) {
-                        filledCell(context, appWidgetId, index, entry, icons[index])
+                        filledCell(context, appWidgetId, index, entry, icons[index], config.iconSize.fitting(config.cols))
                     } else {
                         emptyCell(context, appWidgetId, index)
                     },
@@ -58,7 +72,7 @@ object WidgetRenderer {
             return emptyMap()
         }
         if (!session.niagaraInstalled) return emptyMap()
-        val sizePx = IconRendering.cellSizePx(visible.size)
+        val sizePx = IconRendering.cellSizePx(visible.size, iconPx(context, config.iconSize.fitting(config.cols)))
         val result = HashMap<Int, Bitmap>()
         val glyphMs = ArrayList<Double>()
         val renderMs = ArrayList<Double>()
@@ -97,8 +111,17 @@ object WidgetRenderer {
         }
     }
 
-    private fun filledCell(context: Context, appWidgetId: Int, index: Int, entry: Entry, bitmap: Bitmap?): RemoteViews =
-        RemoteViews(context.packageName, R.layout.widget_cell).apply {
+    /** The icon size in px on this device (bitmaps are drawn no larger than shown, decisions 5b U). */
+    fun iconPx(context: Context, size: IconSize): Int = (size.dp * context.resources.displayMetrics.density).roundToInt()
+
+    fun cellLayout(size: IconSize): Int = when (size) {
+        IconSize.SMALL -> R.layout.widget_cell_small
+        IconSize.DEFAULT -> R.layout.widget_cell_default
+        IconSize.LARGE -> R.layout.widget_cell_large
+    }
+
+    private fun filledCell(context: Context, appWidgetId: Int, index: Int, entry: Entry, bitmap: Bitmap?, size: IconSize): RemoteViews =
+        RemoteViews(context.packageName, cellLayout(size)).apply {
             if (bitmap != null) setImageViewBitmap(R.id.cell_icon, bitmap)
             else setImageViewResource(R.id.cell_icon, IconResolver.drawableRes(entry.icon))
             setTextViewText(R.id.cell_label, entry.label)
@@ -114,18 +137,23 @@ object WidgetRenderer {
 
     private fun emptyCell(context: Context, appWidgetId: Int, index: Int): RemoteViews =
         RemoteViews(context.packageName, R.layout.widget_cell_empty).apply {
-            setOnClickPendingIntent(
-                R.id.cell_empty,
-                PendingIntent.getActivity(
-                    context,
-                    requestCode(appWidgetId, index),
-                    WidgetConfigActivity.intent(context, appWidgetId, fromWidget = true)
-                        // Distinct data per widget+cell, so each cell has its own PendingIntent.
-                        .setData(Uri.parse("navshort://widget/$appWidgetId/cell/$index")),
-                    FLAGS,
-                ),
-            )
+            setOnClickPendingIntent(R.id.cell_empty, openConfig(context, appWidgetId, index))
         }
+
+    private fun addCell(context: Context, appWidgetId: Int): RemoteViews =
+        RemoteViews(context.packageName, R.layout.widget_cell_add).apply {
+            setOnClickPendingIntent(R.id.cell_add, openConfig(context, appWidgetId, 0))
+        }
+
+    private fun openConfig(context: Context, appWidgetId: Int, index: Int): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            requestCode(appWidgetId, index),
+            WidgetConfigActivity.intent(context, appWidgetId, fromWidget = true)
+                // Distinct data per widget+cell, so each cell has its own PendingIntent.
+                .setData(Uri.parse("navshort://widget/$appWidgetId/cell/$index")),
+            FLAGS,
+        )
 
     /** Unique per widget and cell (cells ≤ 36 < 64). */
     fun requestCode(appWidgetId: Int, index: Int): Int = (appWidgetId shl 6) or index

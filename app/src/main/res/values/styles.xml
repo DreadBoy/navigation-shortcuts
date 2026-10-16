@@ -11,32 +11,48 @@
         <item name="android:windowSoftInputMode">adjustResize|stateHidden</item>
     </style>
 
-    <style name="WidgetPreviewCell">
+    <!-- Widget cells (decisions 5b U/E19), shared by the placed widget and the picker preview. -->
+    <style name="WidgetCell">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">match_parent</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:gravity">center</item>
-        <item name="android:orientation">vertical</item>
-        <item name="android:padding">2dp</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="android:paddingEnd">4dp</item>
     </style>
 
-    <style name="WidgetPreviewIcon">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">0dp</item>
-        <item name="android:layout_weight">1</item>
-        <item name="android:scaleType">fitCenter</item>
-        <item name="android:importantForAccessibility">no</item>
-    </style>
-
-    <style name="WidgetPreviewLabel">
+    <style name="WidgetCellContent">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_gravity">start|center_vertical</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <!-- Size set per layout (the size setting); weight 1 in a wrap_content column lets it shrink, never grow, in a
+         short row. -->
+    <style name="WidgetCellIcon">
+        <item name="android:layout_weight">1</item>
+        <item name="android:importantForAccessibility">no</item>
+        <!-- fitStart: a shrunk icon stays on the column's start edge. -->
+        <item name="android:scaleType">fitStart</item>
+    </style>
+
+    <!-- Like Niagara's home-screen labels: white, sans-serif, soft shadow (size per icon size). -->
+    <style name="WidgetCellLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:includeFontPadding">false</item>
         <item name="android:maxLines">1</item>
-        <item name="android:shadowColor">#CC000000</item>
+        <!-- Room for the shadow, which the view would clip; 1 dp keeps the text on the icon's edge. -->
+        <item name="android:paddingStart">1dp</item>
+        <item name="android:paddingEnd">2dp</item>
+        <item name="android:shadowColor">#99000000</item>
+        <item name="android:shadowDx">0</item>
         <item name="android:shadowDy">1</item>
-        <item name="android:shadowRadius">3</item>
+        <item name="android:shadowRadius">4</item>
         <item name="android:textColor">@android:color/white</item>
-        <item name="android:textSize">12sp</item>
     </style>
 
     <!-- Full-screen config screen and app screen: own title, no action bar. -->

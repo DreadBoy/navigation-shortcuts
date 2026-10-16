@@ -136,6 +136,39 @@ object StyleOptions {
         else -> emptyList()
     }
 
+    /**
+     * Whether [style] uses the widget's seed colour ("Icon colour" swatches, decisions 5b U/E8): theme-colour palettes,
+     * Material, Stellar and Outline with fill (its faint tint). Fixed palettes (Coral, Opal, Marble white/black),
+     * app colours and Outline without fill ignore it, so the swatches are hidden there.
+     */
+    fun usesSeedColor(style: AnyconStyle): Boolean = when (style) {
+        is AnyconStyle.Material -> true
+        is AnyconStyle.Sticker -> style.palette == AnyconStyle.Sticker.Palette.THEME_COLORS
+        is AnyconStyle.Dots -> style.palette == AppOrThemePalette.THEME_COLORS
+        is AnyconStyle.Outline -> style.fillType == AnyconStyle.Outline.FillType.FILL
+        is AnyconStyle.OutlineChroma -> style.palette == AppOrThemePalette.THEME_COLORS
+        is AnyconStyle.Watercolor -> style.palette == AppOrThemePalette.THEME_COLORS
+        is AnyconStyle.Marble -> style.palette == AnyconStyle.Marble.Palette.THEME_COLORS
+        is AnyconStyle.Bright -> style.palette == AppOrThemePalette.THEME_COLORS
+        AnyconStyle.Stellar -> true
+    }
+
+    private val SAMPLE_GLYPHS = listOf("cat_home", "cat_office", "cat_fitness", "cat_shopping")
+
+    /**
+     * Style preview icons (decisions 5b E17): the real destinations first (up to [count]); samples only fill the rest,
+     * never repeating a glyph a real destination already shows. Icon ref + seed key.
+     */
+    fun previewIcons(entries: List<Entry>, count: Int): List<Pair<IconRef, String>> {
+        val real = entries.take(count).map { it.icon to it.id }
+        val used = real.flatMap { (icon, _) -> NiagaraGlyphs.glyphsFor(icon).take(1) }.toSet()
+        val samples = SAMPLE_GLYPHS.filterNot { it in used }.take(count - real.size)
+        return real + samples.map { IconRef.niagara(it) to "preview-$it" }
+    }
+
+    /** Icon sizes offered in the config screen (decisions 5b U). */
+    val iconSizes: List<IconSize> = IconSize.entries
+
     /** Packs drawn on a shape background (the shape choice only matters for these). */
     fun usesShape(pack: String): Boolean = pack in setOf(MATERIAL, MARBLE, BRIGHT, STELLAR)
 

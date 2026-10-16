@@ -10,6 +10,7 @@
     <string name="preview_home">Home</string>
     <string name="preview_work">Work</string>
     <string name="preview_gym">Gym</string>
+    <string name="add_destinations">Add destinations</string>
 
     <string name="ok">OK</string>
 
@@ -35,7 +36,9 @@
     <string name="style_preview">Icon style preview</string>
     <string name="config_pack">Pack</string>
     <string name="config_shape">Shape</string>
-    <string name="config_color">Colour (theme-colour palettes)</string>
+    <string name="config_color">Icon colour</string>
+    <string name="config_icon_size">Icon size</string>
+    <string name="config_tall_tip">More rows need a taller widget: long-press it in Niagara → Move and resize.</string>
     <string name="color_swatch">Colour %1$s</string>
     <string name="niagara_missing_style">Niagara isn\'t installed: destinations show built-in icons.</string>
     <string name="config_destinations">Destinations</string>

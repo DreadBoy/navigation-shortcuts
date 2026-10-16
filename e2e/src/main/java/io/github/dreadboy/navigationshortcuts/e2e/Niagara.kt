@@ -199,9 +199,13 @@ class Niagara(private val d: E2eDevice) {
         d.ui.findObjects(By.pkg(E2e.APP).res(E2e.APP, "cell_empty"))
             .sortedWith(compareBy({ it.visibleBounds.top }, { it.visibleBounds.left }))
 
+    /** The "+ Add destinations" cell a widget without destinations shows instead of its grid (decisions 5b E4). */
+    fun addCell(): UiObject2 =
+        d.waitFor(By.pkg(E2e.APP).res(E2e.APP, "cell_add"), E2e.LONG, "'Add destinations' cell of the empty widget")
+
     /**
      * Waits until our widget shows exactly [labels] as filled cells and [empty] empty cells (the widget re-renders
-     * asynchronously after an update).
+     * asynchronously after an update); the "+ Add destinations" cell is shown exactly when there are no labels.
      */
     fun assertWidgetCells(labels: List<String>, empty: Int) {
         val deadline = System.currentTimeMillis() + E2e.LONG
@@ -209,13 +213,19 @@ class Niagara(private val d: E2eDevice) {
             goHome()
             val shown = cellLabels()
             val emptyShown = emptyCells().size
-            if (shown == labels && emptyShown == empty) return
+            val addShown = d.ui.hasObject(By.pkg(E2e.APP).res(E2e.APP, "cell_add").desc("Add destinations"))
+            if (shown == labels && emptyShown == empty && addShown == labels.isEmpty()) return
             if (System.currentTimeMillis() > deadline) {
-                throw AssertionError("Widget shows cells $shown + $emptyShown empty, expected $labels + $empty empty")
+                throw AssertionError(
+                    "Widget shows cells $shown + $emptyShown empty (add cell: $addShown), expected $labels + $empty empty",
+                )
             }
             SystemClock.sleep(500)
         }
     }
+
+    /** A 1-row widget without destinations: only the visible "+ Add destinations" cell, no transparent cells. */
+    fun assertEmptyWidget() = assertWidgetCells(emptyList(), 0)
 
     /**
      * Niagara's requestPinAppWidget confirmation ("Add to home screen", our app name, Okay / Cancel; decisions 3.2).

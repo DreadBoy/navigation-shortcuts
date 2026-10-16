@@ -55,7 +55,7 @@ class ConfigE2eTest {
     @Test
     fun emptyCell_config_addThree_resizeTo2x2_deleteAndReorder_widgetReRendersAndNavigates() {
         niagara.addOurWidget()
-        niagara.emptyCells()[0].click()
+        niagara.addCell().click()
         config.awaitShown()
         config.addManually(BTC.first, BTC.second)
         config.addManually(ZOO.first, ZOO.second)
@@ -96,7 +96,7 @@ class ConfigE2eTest {
     @Test
     fun niagaraLongPress_changeWidgetSettings_opensConfigForThatWidget() {
         niagara.addOurWidget()
-        niagara.emptyCells()[0].click()
+        niagara.addCell().click()
         config.awaitShown()
         config.addManually(ZOO.first, ZOO.second)
         config.save()
@@ -123,7 +123,7 @@ class ConfigE2eTest {
     @Test
     fun styleChange_reRendersCells_andStillNavigates() {
         niagara.addOurWidget()
-        niagara.emptyCells()[0].click()
+        niagara.addCell().click()
         config.awaitShown()
         assertTrue("default style: ${config.previewDescription()}", config.previewDescription().endsWith("Sticker · Coral"))
         config.addManually("Home", BTC.second)

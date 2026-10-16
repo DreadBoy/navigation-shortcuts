@@ -44,33 +44,34 @@ class WidgetE2eTest {
         maps.forceStop()
     }
 
-    /** Harness smoke test: a new widget is an empty 1×4 grid; the place/remove helpers leave the slot empty. */
+    /** Harness smoke test: a new widget is empty ("+ Add destinations"); the place/remove helpers leave the slot empty. */
     @Test
     fun harness_newWidgetIsEmptyDefaultGrid_andCanBeRemoved() {
         niagara.addOurWidget()
-        niagara.assertWidgetCells(emptyList(), E2e.DEFAULT_CELLS)
+        niagara.assertEmptyWidget()
 
         niagara.removeCustomWidgetIfPresent()
         assertNull("custom widget still placed after Remove", niagara.placedWidget())
     }
 
     /**
-     * Spec Flow 4: an empty cell opens the config screen for this widget, which keeps the "share a place from Google
-     * Maps" tip as a hint; Cancel leaves the widget unchanged.
+     * Spec Flow 4: an empty widget's "+ Add destinations" cell (decisions 5b E4) opens the config screen for this widget,
+     * which keeps the "share a place from Google Maps" tip as a hint; Cancel leaves the widget unchanged. (Transparent
+     * empty cells of a widget with destinations open it too: ConfigE2eTest.)
      */
     @Test
-    fun emptyCellTap_opensConfigWithShareTip() {
+    fun emptyWidgetAddCell_opensConfigWithShareTip() {
         niagara.addOurWidget()
-        niagara.assertWidgetCells(emptyList(), E2e.DEFAULT_CELLS)
+        niagara.assertEmptyWidget()
 
-        niagara.emptyCells()[1].click()
+        niagara.addCell().click()
         val config = ConfigScreen(d).awaitShown()
         assertTrue("share tip in the config screen: '${config.hint()}'", config.hint().contains("share any place from Google Maps"))
         assertEquals(emptyList<String>(), config.entries())
         assertEquals(1 to 4, config.rows() to config.cols())
         config.cancel()
 
-        niagara.assertWidgetCells(emptyList(), E2e.DEFAULT_CELLS)
+        niagara.assertEmptyWidget()
     }
 
     /** Spec scenario 3b: Maps → place → Share → "Add to navigation widget" → Add → back in Maps → cell → navigation. */

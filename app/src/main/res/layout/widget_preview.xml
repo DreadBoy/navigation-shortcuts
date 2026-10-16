@@ -1,29 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Picker preview only (Niagara renders it live): a 1×4 widget with three sample shortcuts and one empty cell.
-     Same structure as widget_cell, but without ids, so nothing here can be mistaken for a placed widget's cells. -->
+<!-- Picker preview only (Niagara renders it live): a 1×4 widget with three sample shortcuts in the default look
+     (Sticker-like icons, 44 dp, left-aligned like the real cells; decisions 5b E11) and one empty cell.
+     Same styles as widget_cell_default, but without ids, so nothing here can be mistaken for a placed widget's cells. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="UseCompoundDrawables"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/transparent"
-    android:orientation="horizontal"
-    android:padding="2dp">
+    android:orientation="horizontal">
 
-    <LinearLayout style="@style/WidgetPreviewCell">
-        <ImageView style="@style/WidgetPreviewIcon" android:contentDescription="@null" android:src="@drawable/ic_icon_home" />
-        <TextView style="@style/WidgetPreviewLabel" android:text="@string/preview_home" />
-    </LinearLayout>
+    <FrameLayout style="@style/WidgetCell">
+        <LinearLayout style="@style/WidgetCellContent" tools:ignore="UseCompoundDrawables">
+            <ImageView
+                style="@style/WidgetCellIcon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="@null"
+                android:src="@drawable/preview_sticker_home" />
+            <TextView style="@style/WidgetCellLabel" android:text="@string/preview_home" android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
 
-    <LinearLayout style="@style/WidgetPreviewCell">
-        <ImageView style="@style/WidgetPreviewIcon" android:contentDescription="@null" android:src="@drawable/ic_icon_work" />
-        <TextView style="@style/WidgetPreviewLabel" android:text="@string/preview_work" />
-    </LinearLayout>
+    <FrameLayout style="@style/WidgetCell">
+        <LinearLayout style="@style/WidgetCellContent" tools:ignore="UseCompoundDrawables">
+            <ImageView
+                style="@style/WidgetCellIcon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="@null"
+                android:src="@drawable/preview_sticker_work" />
+            <TextView style="@style/WidgetCellLabel" android:text="@string/preview_work" android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
 
-    <LinearLayout style="@style/WidgetPreviewCell">
-        <ImageView style="@style/WidgetPreviewIcon" android:contentDescription="@null" android:src="@drawable/ic_icon_gym" />
-        <TextView style="@style/WidgetPreviewLabel" android:text="@string/preview_gym" />
-    </LinearLayout>
+    <FrameLayout style="@style/WidgetCell">
+        <LinearLayout style="@style/WidgetCellContent" tools:ignore="UseCompoundDrawables">
+            <ImageView
+                style="@style/WidgetCellIcon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:contentDescription="@null"
+                android:src="@drawable/preview_sticker_gym" />
+            <TextView style="@style/WidgetCellLabel" android:text="@string/preview_gym" android:textSize="16sp" />
+        </LinearLayout>
+    </FrameLayout>
 
-    <FrameLayout style="@style/WidgetPreviewCell" />
+    <FrameLayout style="@style/WidgetCell" />
 </LinearLayout>

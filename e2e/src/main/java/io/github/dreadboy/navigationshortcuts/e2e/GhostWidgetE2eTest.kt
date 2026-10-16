@@ -51,7 +51,7 @@ class GhostWidgetE2eTest {
         // 2. Niagara: long-press it → Add Custom Widget → Navigation Shortcuts → Replace widget. A new, empty widget is
         //    shown; the old ID stays bound (the ghost).
         niagara.replaceCustomWidgetWithNewOurs()
-        niagara.assertWidgetCells(emptyList(), E2e.DEFAULT_CELLS)
+        niagara.assertEmptyWidget()
         assertEquals("bound IDs after Replace (old one stays bound)", ghostsBefore + 2, niagara.boundWidgetIdsOfOurApp().size)
 
         // 3. Share: the chooser lists the visible (newest) widget first and preselects it; Add puts the place there.

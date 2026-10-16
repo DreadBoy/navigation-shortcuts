@@ -34,7 +34,9 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
             android:excludeFromRecents="true"
             android:exported="true"
+            android:icon="@drawable/ic_share_target"
             android:label="@string/share_target_label"
+            android:roundIcon="@drawable/ic_share_target"
             android:theme="@style/Theme.NavShort.BottomSheet">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

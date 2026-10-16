@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The only cell of a widget without destinations (decisions 5b E4): a visible "+ Add destinations" row across the
+     whole widget width (icon left, label right, like Niagara's app rows) that opens the widget's config screen. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cell_add"
+    style="@style/WidgetCell"
+    android:contentDescription="@string/add_destinations">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|center_vertical"
+        tools:ignore="UseCompoundDrawables"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_add_destination" />
+
+        <TextView
+            style="@style/WidgetCellLabel"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="0dp"
+            android:text="@string/add_destinations"
+            android:textSize="16sp" />
+    </LinearLayout>
+</FrameLayout>

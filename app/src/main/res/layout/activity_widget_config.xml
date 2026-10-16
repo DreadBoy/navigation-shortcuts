@@ -106,6 +106,15 @@
                 android:textColor="?android:attr/textColorSecondary"
                 android:visibility="gone" />
 
+            <TextView
+                android:id="@+id/grid_tall_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/config_tall_tip"
+                android:textColor="?android:attr/textColorSecondary"
+                android:visibility="gone" />
+
             <!-- Icon style -->
             <TextView
                 style="@style/ConfigSection"
@@ -148,6 +157,24 @@
             </LinearLayout>
 
             <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/ConfigFieldLabel"
+                    android:text="@string/config_icon_size" />
+
+                <Spinner
+                    android:id="@+id/icon_size"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:contentDescription="@string/config_icon_size" />
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/style_dimensions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -172,6 +199,7 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/color_label"
                 style="@style/SheetFieldLabel"
                 android:text="@string/config_color" />
 

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "+ Add destinations" cell of an empty widget (decisions 5b E4): a white plus on a translucent white disc with a
+     thin outline, visible on dark and light wallpapers. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="44dp"
+    android:height="44dp"
+    android:viewportWidth="44"
+    android:viewportHeight="44">
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M22,2a20,20 0,1 1,0 40a20,20 0,1 1,0 -40z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#B3FFFFFF" />
+    <path
+        android:pathData="M22,13v18M13,22h18"
+        android:strokeWidth="3"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round" />
+</vector>

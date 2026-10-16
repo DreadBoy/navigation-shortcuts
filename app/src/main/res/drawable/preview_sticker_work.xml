@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget-picker preview only (decisions 5b E11): Material Icons "work" (Apache License 2.0) drawn sticker-like so the preview
+     resembles the default Sticker · Coral look: white die-cut edge, pastel gradient, dark purple line. Our own drawing;
+     the real widget draws Niagara's glyphs at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="44dp"
+    android:height="44dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.8"
+        android:scaleY="0.8"
+        android:translateX="2.4"
+        android:translateY="2.4">
+        <path
+            android:pathData="M20,6h-4V4c0,-1.11 -0.89,-2 -2,-2h-4c-1.11,0 -2,0.89 -2,2v2H4c-1.11,0 -1.99,0.89 -1.99,2L2,19c0,1.11 0.89,2 2,2h16c1.11,0 2,-0.89 2,-2V8c0,-1.11 -0.89,-2 -2,-2zM14,6h-4V4h4v2z"
+            android:strokeWidth="4"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M20,6h-4V4c0,-1.11 -0.89,-2 -2,-2h-4c-1.11,0 -2,0.89 -2,2v2H4c-1.11,0 -1.99,0.89 -1.99,2L2,19c0,1.11 0.89,2 2,2h16c1.11,0 2,-0.89 2,-2V8c0,-1.11 -0.89,-2 -2,-2zM14,6h-4V4h4v2z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:endX="20"
+                    android:endY="22"
+                    android:startX="4"
+                    android:startY="2"
+                    android:type="linear">
+                    <item android:color="#FFF8B4A6" android:offset="0" />
+                    <item android:color="#FFF2A7D0" android:offset="0.5" />
+                    <item android:color="#FFAFB6F2" android:offset="1" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M20,6h-4V4c0,-1.11 -0.89,-2 -2,-2h-4c-1.11,0 -2,0.89 -2,2v2H4c-1.11,0 -1.99,0.89 -1.99,2L2,19c0,1.11 0.89,2 2,2h16c1.11,0 2,-0.89 2,-2V8c0,-1.11 -0.89,-2 -2,-2zM14,6h-4V4h4v2z"
+            android:strokeWidth="1"
+            android:strokeColor="#FF482658"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

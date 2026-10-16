@@ -86,7 +86,9 @@ object IconRendering {
         }
         val t1 = SystemClock.elapsedRealtimeNanos()
         val bitmap = if (glyph == null) null else try {
-            session.renderer.render(glyph, style, sizePx, seedKey)
+            // "App colours": each destination gets its own colour, by category or per entry (decisions 5b, U/E9).
+            val color = if (DestinationColors.usesAppColor(style)) DestinationColors.colorFor(glyph, seedKey) else null
+            session.renderer.render(glyph, style, sizePx, seedKey, color)
         } catch (e: Exception) {
             Log.w(TAG, "render $glyph failed", e)
             null
@@ -96,12 +98,14 @@ object IconRendering {
     }
 
     /**
-     * Icon size for a grid with [bitmapCells] Niagara icons: [MAX_CELL_PX], reduced so that all ARGB_8888 bitmaps
-     * together stay within [BITMAP_BUDGET_BYTES] (6×6 → 53 px).
+     * Icon bitmap size for a grid with [bitmapCells] Niagara icons shown at most [targetPx] big (the widget's icon size,
+     * decisions 5b U): at most [MAX_CELL_PX], reduced so that all ARGB_8888 bitmaps together stay within
+     * [BITMAP_BUDGET_BYTES] (6×6 → 53 px).
      */
-    fun cellSizePx(bitmapCells: Int): Int {
-        if (bitmapCells <= 0) return MAX_CELL_PX
-        return min(MAX_CELL_PX, sqrt(BITMAP_BUDGET_BYTES / (4.0 * bitmapCells)).toInt())
+    fun cellSizePx(bitmapCells: Int, targetPx: Int = MAX_CELL_PX): Int {
+        val cap = min(MAX_CELL_PX, targetPx.coerceAtLeast(1))
+        if (bitmapCells <= 0) return cap
+        return min(cap, sqrt(BITMAP_BUDGET_BYTES / (4.0 * bitmapCells)).toInt())
     }
 
     /**

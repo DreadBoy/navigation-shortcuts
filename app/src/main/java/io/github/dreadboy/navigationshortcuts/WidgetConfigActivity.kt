@@ -51,6 +51,7 @@ class WidgetConfigActivity : Activity() {
     private var cols = WidgetConfig.DEFAULT_COLS
     private val entries = mutableListOf<Entry>()
     private var style: AnyconSettings = WidgetConfig.DEFAULT_STYLE
+    private var iconSize: IconSize = IconSize.DEFAULT
     private var saving = false
 
     private lateinit var scroll: ScrollView
@@ -61,6 +62,9 @@ class WidgetConfigActivity : Activity() {
     private lateinit var colsMinus: Button
     private lateinit var colsPlus: Button
     private lateinit var gridNote: TextView
+    private lateinit var gridTallNote: TextView
+    private lateinit var iconSizeSpinner: Spinner
+    private lateinit var colorLabel: View
     private lateinit var preview: LinearLayout
     private lateinit var styleNote: TextView
     private lateinit var packSpinner: Spinner
@@ -98,6 +102,9 @@ class WidgetConfigActivity : Activity() {
         colsMinus = findViewById(R.id.cols_minus)
         colsPlus = findViewById(R.id.cols_plus)
         gridNote = findViewById(R.id.grid_note)
+        gridTallNote = findViewById(R.id.grid_tall_note)
+        iconSizeSpinner = findViewById(R.id.icon_size)
+        colorLabel = findViewById(R.id.color_label)
         preview = findViewById(R.id.style_preview)
         styleNote = findViewById(R.id.style_note)
         packSpinner = findViewById(R.id.style_pack)
@@ -150,6 +157,7 @@ class WidgetConfigActivity : Activity() {
             entries.clear()
             entries += config.entries
             style = config.style
+            iconSize = config.iconSize
             styleNote.visibility = if (niagaraInstalled) View.GONE else View.VISIBLE
             setUpStyleControls()
             refreshGrid()
@@ -181,6 +189,8 @@ class WidgetConfigActivity : Activity() {
         val blocked = (rows > 1 && rows * cols - cols < entries.size) || (cols > 1 && rows * cols - rows < entries.size)
         gridNote.visibility = if (blocked) View.VISIBLE else View.GONE
         gridNote.text = getString(R.string.grid_shrink_blocked, entries.size)
+        // Growing rows: Niagara's slot doesn't grow with them (decisions 5b E3), as the share sheet says too.
+        gridTallNote.visibility = if (rows >= TALL_HINT_ROWS && rows > (original?.rows ?: rows)) View.VISIBLE else View.GONE
         val atMax = entries.size >= WidgetConfig.MAX_SIZE * WidgetConfig.MAX_SIZE
         addButton.isEnabled = !atMax
         addNote.visibility = if (atMax) View.VISIBLE else View.GONE
@@ -204,6 +214,15 @@ class WidgetConfigActivity : Activity() {
             style = style.copy(style = StyleOptions.build(pack, emptyMap()))
             buildDimensionSpinners()
             styleChanged()
+        }
+
+        val sizes = StyleOptions.iconSizes
+        iconSizeSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, sizes.map { it.label })
+        iconSizeSpinner.setSelection(sizes.indexOf(iconSize).coerceAtLeast(0), false)
+        iconSizeSpinner.onItemSelectedListener = onSelected { position ->
+            if (sizes[position] == iconSize) return@onSelected
+            iconSize = sizes[position]
+            updatePreview()
         }
 
         val shapes = StyleOptions.shapes
@@ -283,16 +302,19 @@ class WidgetConfigActivity : Activity() {
             }
             swatch.isSelected = color == style.seedColor
         }
+        // Swatches only where the colour is used (decisions 5b U/E8).
+        val colorVisibility = if (StyleOptions.usesSeedColor(style.style)) View.VISIBLE else View.GONE
+        colorLabel.visibility = colorVisibility
+        colorRow.visibility = colorVisibility
         updatePreview()
         rebuildList()
     }
 
     private fun updatePreview() {
         preview.removeAllViews()
-        val samples = entries.take(PREVIEW_ICONS).map { it.icon to it.id } +
-            SAMPLE_GLYPHS.drop(entries.size.coerceAtMost(PREVIEW_ICONS)).take(PREVIEW_ICONS - entries.size.coerceAtMost(PREVIEW_ICONS))
-                .map { IconRef.niagara(it) to "preview-$it" }
-        val sizePx = (48 * density).toInt()
+        val samples = StyleOptions.previewIcons(entries, PREVIEW_ICONS)
+        // Shown at the widget's icon size, so the size setting is visible here (decisions 5b U).
+        val sizePx = (iconSize.dp * density).toInt()
         val margin = (8 * density).toInt()
         for ((icon, seed) in samples) {
             val view = ImageView(this).apply {
@@ -455,7 +477,7 @@ class WidgetConfigActivity : Activity() {
         if (saving) return
         saving = true
         saveButton.isEnabled = false
-        val edited = WidgetConfig(rows, cols, entries.toList(), style)
+        val edited = WidgetConfig(rows, cols, entries.toList(), style, iconSize)
         scope.launch {
             withContext(Dispatchers.IO) {
                 store.update { it.saveEdited(widgetId, before, edited) }
@@ -488,7 +510,9 @@ class WidgetConfigActivity : Activity() {
     companion object {
         private const val TAG = "NavShortConfig"
         private const val PREVIEW_ICONS = 4
-        private val SAMPLE_GLYPHS = listOf("cat_home", "cat_office", "cat_fitness", "cat_shopping")
+
+        /** From this many rows the default Niagara slot (315×80 dp) is too short for icons with labels. */
+        const val TALL_HINT_ROWS = 2
 
         /** Opens the config for [appWidgetId]; from the widget it starts its own task (no back stack into the app). */
         fun intent(context: Context, appWidgetId: Int, fromWidget: Boolean): Intent =
