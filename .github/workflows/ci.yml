@@ -1,5 +1,7 @@
-# CI: unit tests + lint, the E2E suite on an emulator (real Niagara + real Google Maps), then the release build.
-# Docs: docs/release-procedure.md ("CI and release workflows").
+# CI: unit tests + lint, then the release build. The E2E suite on an emulator (real Niagara + real Google Maps)
+# is EXPERIMENTAL here: it runs only on a manual run (workflow_dispatch) and never blocks; on the hosted runner's
+# software-GPU emulator the guest froze during provisioning in runs 2-5 (decisions 1.7). The required E2E
+# gate is a local e2e/run-e2e.sh run before tagging. Docs: docs/release-procedure.md ("CI and release workflows").
 name: CI
 
 on:
@@ -54,7 +56,11 @@ jobs:
           retention-days: 14
 
   e2e:
-    name: E2E (emulator, Niagara, Google Maps)
+    name: E2E (experimental, manual runs only)
+    # Manual runs only (Actions tab -> CI -> Run workflow); skipped on push to main and when release.yml calls this
+    # workflow (github.event_name is then the caller's "push"). A failure does not fail the run.
+    if: github.event_name == 'workflow_dispatch'
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
@@ -210,7 +216,8 @@ jobs:
 
   release-build:
     name: Release build
-    needs: [unit, e2e]
+    # Not gated on the experimental CI E2E job; the E2E gate for a release is the local run (release-procedure.md).
+    needs: unit
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

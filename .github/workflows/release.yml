@@ -1,6 +1,8 @@
-# Release: on a pushed tag v<versionName> (e.g. v1.0.0) run the full CI (unit, E2E, signed release build) and
+# Release: on a pushed tag v<versionName> (e.g. v1.0.0) run CI (unit tests, lint, signed release build) and
 # create a DRAFT GitHub Release with the signed APK and its .sha256. The user reviews and publishes the draft.
-# Tags are pushed only with the user's approval. Docs: docs/release-procedure.md.
+# CI's E2E job is experimental and skipped here (it only runs on manual dispatch); the required E2E gate is a green
+# local e2e/run-e2e.sh on the tagged commit before the tag is pushed. Tags are pushed only with the user's approval.
+# Docs: docs/release-procedure.md.
 name: Release
 
 on:

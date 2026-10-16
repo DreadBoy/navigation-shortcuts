@@ -42,13 +42,13 @@ Do this once, now:
 
 ### CI — `.github/workflows/ci.yml`
 
-Triggers: push to `main`; manually (repo → Actions → **CI** → **Run workflow**, or `gh workflow run ci.yml --repo DreadBoy/navigation-shortcuts --ref main` with `gh` switched to the personal account); called by `release.yml`. A newer run on the same ref cancels the older one. Permissions: `contents: read`.
+Triggers: push to `main`; manually (repo → Actions → **CI** → **Run workflow**, or `gh workflow run ci.yml --repo DreadBoy/navigation-shortcuts --ref main` with `gh` switched to the personal account); called by `release.yml`. The `e2e` job runs only on manual runs (see below). A newer run on the same ref cancels the older one. Permissions: `contents: read`.
 
 | Job | What | Timeout |
 |---|---|---|
 | `unit` | `./gradlew testDebugUnitTest lintDebug assembleDebug` (JDK 21 Temurin, Gradle cache via `setup-java`) | 30 min |
-| `e2e` | Emulator + Niagara + Google Maps, then `e2e/run-e2e.sh` (same script as locally) | 120 min (job); inside the script `SETUP_TIMEOUT=1800` s for provisioning and `E2E_TIMEOUT=2700` s for the Gradle part |
-| `release-build` | `assembleRelease`, after `unit` and `e2e` pass | 30 min |
+| `e2e` | **Experimental, manual runs only** (`if: github.event_name == 'workflow_dispatch'`, `continue-on-error: true`): emulator + Niagara + Google Maps, then `e2e/run-e2e.sh` (same script as locally). Skipped on push and in `release.yml`; never blocks | 120 min (job); inside the script `SETUP_TIMEOUT=1800` s for provisioning and `E2E_TIMEOUT=2700` s for the Gradle part |
+| `release-build` | `assembleRelease`, after `unit` passes (not gated on `e2e`) | 30 min |
 
 E2E emulator (`reactivecircus/android-emulator-runner@v2`, `ubuntu-latest` with KVM): `system-images;android-36;google_apis_playstore;x86_64` (Google Play image, rev 7, ships Google Maps; local AVD is the arm64 twin), profile `pixel_7` (the runner image ships cmdline-tools 12.0, whose device list has no `pixel_8`; `pixel_7` has the same 1080×2400 screen and 420 dpi density bucket as the local `pixel_8` AVD, so the fixed tap/swipe coordinates in `setup-emulator.sh` still match; only the nominal physical size differs, 6.31″ vs 6.17″, which the emulator does not use), 2 cores (3 until run 3), 4 GB RAM, 228 MB heap, 6 GB data partition, cold boot (`-no-snapshot`, no AVD cache: same path as local runs), `-gpu software` (CI attempt 4; runs 1–3 used `swiftshader_indirect`, which emulator 36.4.9 deprecated together with `swangle_indirect` and `guest`, making `-gpu software` the supported software path, Lavapipe by default. In runs 2 and 3 the whole guest froze about 45 s after boot when setup tapped Niagara's "Agree & Continue", QEMU stayed busy (run 3: 263–314 % CPU, about 5 GB RSS, no host OOM) and exited about 37 s into the freeze; the host renderer is the remaining suspect. Run 4 with `-gpu software` (Lavapipe/SwANGLE) froze the same way, and its thread samples showed a deadlock: every QEMU thread idle except one gfxstream render thread blocked in the host kernel (D state). Attempt 5 adds `-feature -HostComposition`, so hwcomposer composes in the guest instead of through the host render pipe), `-feature -HardwareDecoder -feature -Vulkan` (CI only; in run 2 the guest froze about 20 s after Niagara's onboarding started a host-side `c2.goldfish.hevc.decoder`, and the emulator process died about 60 s after that, i.e. a hang rather than an instant crash. Two suspects, one flag each: `-HardwareDecoder` makes the guest use its software video codecs instead of the host decoders; `-Vulkan` turns off guest Vulkan on gfxstream/swiftshader, valid since emulator 35.3.11 really disables it, and HWUI already renders with `skiagl`. Emulator 36.3.10 also fixed "Vulkan composition crashes when video codecs run in gpu texture mode". `run-e2e.sh` logs the `hwcodec`/`vulkan` props after boot to show both took effect; local AVDs are unchanged), animations off on CI since attempt 5 (`disable-animations: true`, set right after boot, so Niagara's onboarding transition is a single frame; nothing in the suite or setup relies on animations; local AVDs keep them on), boot timeout 15 min. `run-e2e.sh` and `setup-emulator.sh` disable the Play Store (`pm disable-user com.android.vending`, `auto_update 0`) right after boot (decisions 1.2); `setup-emulator.sh` stops with an error if Maps is missing.
 
@@ -66,6 +66,10 @@ Artifacts (14 days; the release APK 30 days):
 | `e2e-test-results` | always | `e2e/build/outputs/androidTest-results/`, `e2e/build/reports/androidTests/`, `e2e/build/outputs/run-e2e-results/` |
 | `e2e-diagnostics` | `e2e` failed or cancelled | `logcat.txt`, `guest-top.log` (guest `top` every 10 s), `adb-devices.txt`, `host/` (`memory.log`: load average, memory, the QEMU process's RSS/CPU and its busiest threads every 10 s; `free`, `ps`, `dmesg`, the emulator's crash reports from `/tmp/android-*`, AVD `.ini`/logs), `final-screen.png`, `final-ui.xml`, `dumpsys-activities.txt`, `test-screenshots/` (emulator output is in the step log) |
 | `release-apk` | signing secrets set | `navigation-shortcuts-<versionName>.apk` + `.sha256` |
+
+### Why CI E2E is experimental
+
+On the hosted `ubuntu-latest` runner the emulator (API 36 Google Play x86_64 image, software GPU, emulator 37.2.12) froze the whole guest during provisioning in runs 2–5 (about 45 s after boot, at Niagara's onboarding), and the emulator process then exited; run 4's thread samples point to a deadlock in the host-side gfxstream render path (decisions 1.7). Locally (Apple Silicon, host GPU, arm64 image) the same scripts are green. So the E2E suite stays the release gate, but it runs locally (next section's gate); the CI job is kept for manual experiments (Actions → **CI** → **Run workflow**) and its diagnostics artifact.
 
 ### Signing secrets (user)
 
@@ -101,12 +105,25 @@ Without the secrets (any of the four missing) the run stays green: a `::notice::
 Trigger: push of a tag `v*` only (no manual trigger). Tags are pushed only with the user's approval.
 
 1. `preflight`: fails if any of the four secrets is missing (a release must be signed), if the tag is not `v` + `versionName` from `app/build.gradle.kts`, if `versionCode` is not a positive integer, or if it is not greater than the `versionCode` at the previous `v*` tag (`git describe --tags --abbrev=0 --match 'v*' HEAD^`; no earlier tag = first release, passes).
-2. `ci`: the whole `ci.yml` (unit, E2E, signed `release-build`) with the repo secrets.
+2. `ci`: `ci.yml` with the repo secrets: `unit` and the signed `release-build`; its `e2e` job is skipped (manual runs only). The E2E gate for a release is the local run below.
 3. `publish` (`contents: write` on this job only): downloads `release-apk`, re-checks the `.sha256` and the signature (`CN=Matic Leva`), and runs `gh release create v<version> --draft --verify-tag` with the APK and its `.sha256` attached.
 
 The release is a **draft**: the user checks it on the Releases page (compare the certificate SHA-256 in the job log with earlier releases), edits the notes and clicks **Publish release**. A failed or deleted draft can be redone by deleting the tag and pushing it again only if nothing was published; a published version number is never reused — bump `versionCode`/`versionName` instead.
 
-Flow for a release: bump `versionCode` and `versionName`, commit, push `main` (CI green), then with approval `git tag v<versionName> && git push origin v<versionName>`.
+### Required pre-tag gate: local E2E green on the release commit
+
+CI does not run the E2E suite for a release, so before a tag is pushed the suite must pass locally on exactly the commit that gets tagged:
+
+```sh
+git switch main && git pull --ff-only     # the commit to tag
+git status --porcelain                    # must print nothing (clean tree)
+git rev-parse HEAD                        # note it: this commit gets the tag
+e2e/run-e2e.sh                            # local AVD navshort-e2e + vendor/niagara.apk; boots the AVD if needed
+```
+
+Pass = exit code 0 and the summary line `[run-e2e] tests=N failures=0 errors=0 skipped=0`. A red test (including a known Maps flake, decisions 1.8) means: look at it, rerun, and tag only after a fully green run on that same `HEAD`. Put the commit and the summary line into the draft release notes.
+
+Flow for a release: bump `versionCode` and `versionName`, commit, push `main` (CI green), run the local E2E gate above on that commit, then with approval `git tag v<versionName> && git push origin v<versionName>`.
 
 ## Building a release locally
 
