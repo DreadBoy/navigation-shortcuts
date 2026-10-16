@@ -118,8 +118,14 @@ jobs:
             echo "== $(date -u +%T) load $(cut -d' ' -f1-3 /proc/loadavg)"
             free -m | sed -n 2,3p
             pids=$(pgrep -d, -f 'qemu-system-x86_64' || true)
-            if [ -n "$pids" ]; then ps -o pid,rss,pcpu,etime,args -p "$pids" | cut -c1-120; else echo "no qemu-system process"; fi
-            sleep 15
+            if [ -n "$pids" ]; then
+              ps -o pid,rss,pcpu,etime,args -p "$pids" | cut -c1-120
+              # Busiest QEMU threads by name: vCPU threads vs renderer / software-GPU workers show where a freeze spins.
+              top -b -H -n 1 -p "${pids%%,*}" | sed -n '7,19p' | cut -c1-110
+            else
+              echo "no qemu-system process"
+            fi
+            sleep 10
           done
           EOF
           nohup bash "$RUNNER_TEMP/host-sampler.sh" > "$RUNNER_TEMP/e2e-artifacts/host/memory.log" 2>&1 &
@@ -136,18 +142,22 @@ jobs:
           # pixel_8 is unknown to the runner image's cmdline-tools 12.0; pixel_7 has the same screen as the local
           # pixel_8 AVD (1080x2400, 420 dpi density bucket), which setup-emulator.sh's fixed coordinates rely on.
           profile: pixel_7
-          cores: 3
+          # 2 vCPUs (was 3) leave the 4-vCPU runner two cores for the host-side software renderer; run 3 showed
+          # QEMU at 263-314 % CPU during the freeze.
+          cores: 2
           ram-size: 4096M
           heap-size: 228M
           # Play Store AVDs force a 6 GB data partition anyway (decisions 1.2).
           disk-size: 6G
           emulator-boot-timeout: 900
-          # Run 2: the guest froze ~20 s after Niagara's onboarding started a host-side c2.goldfish.hevc.decoder and
-          # the emulator process died ~60 s after that (a hang, then killed). Two suspects, one flag each:
-          # -feature -HardwareDecoder: guest software video codecs instead of the emulator's host-side decoders;
-          # -feature -Vulkan: no guest Vulkan on gfxstream/swiftshader (HWUI already renders with skiagl).
-          # run-e2e.sh logs the hwcodec/vulkan props so a run shows both took effect. Details: docs/release-procedure.md.
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none -feature -HardwareDecoder -feature -Vulkan
+          # Runs 2 and 3: the whole guest froze ~45 s after boot, when setup tapped Niagara's "Agree & Continue";
+          # QEMU kept spinning (263-314 % CPU, ~5 GB RSS, no host OOM) and exited ~40-60 s later. Host decoders and
+          # guest Vulkan were already off in run 3 (props confirmed), so the remaining suspect is the host renderer.
+          # -gpu software (was swiftshader_indirect): swiftshader_indirect, swangle_indirect and guest are deprecated
+          # since emulator 36.4.9, which made '-gpu software' the supported software path (Lavapipe by default).
+          # -feature -HardwareDecoder / -Vulkan stay (guest software codecs, no guest Vulkan; HWUI uses skiagl).
+          # run-e2e.sh logs the hwcodec/vulkan props so a run shows they took effect. Details: docs/release-procedure.md.
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu software -camera-back none -feature -HardwareDecoder -feature -Vulkan
           # Keep animations on, like the local AVD the suite was verified on.
           disable-animations: false
           # One command: the runner runs each script line in its own `sh -c`; the emulator is killed afterwards,

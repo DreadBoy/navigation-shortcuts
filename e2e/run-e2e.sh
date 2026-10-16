@@ -53,12 +53,14 @@ fi
 
 # ---------------------------------------------------------------- diagnostics (E2E_ARTIFACTS_DIR)
 LOGCAT_PID=""
+TOP_PID=""
 BOOTED_HERE=""
 # shellcheck disable=SC2329  # invoked by the EXIT trap
 collect() {
   local rc=$?
   set +eu
   [ -n "$LOGCAT_PID" ] && { kill "$LOGCAT_PID" 2>/dev/null; wait "$LOGCAT_PID" 2>/dev/null; }
+  [ -n "$TOP_PID" ] && { kill "$TOP_PID" 2>/dev/null; wait "$TOP_PID" 2>/dev/null; }
   if [ -n "$ARTIFACTS" ] && [ "$rc" != 0 ]; then
     mkdir -p "$ARTIFACTS"
     log "exit $rc: collecting diagnostics into $ARTIFACTS"
@@ -114,6 +116,16 @@ if [ -n "$ARTIFACTS" ]; then
   # -feature -HardwareDecoder / -feature -Vulkan there should be no hwcodec props and no ranchu Vulkan.
   props=$(a shell getprop 2>/dev/null | tr -d '\r' | grep -i -E 'hwcodec|vulkan' | tr '\n' ' ' || true)
   log "emulator media/vulkan props: ${props:-(none)}"
+  # Guest load every 10 s, so a guest stall shows what was running (and when the device stopped answering).
+  ( set +e
+    tb=$(command -v timeout || command -v gtimeout)
+    while :; do
+      echo "== $(date -u +%T)"
+      ${tb:+"$tb" 8} "$ADB" -s "$ANDROID_SERIAL" shell top -b -n 1 -m 12 2>&1 | tr -d '\r' | head -25
+      sleep 10
+    done ) > "$ARTIFACTS/guest-top.log" 2>&1 &
+  TOP_PID=$!
+  log "guest top every 10 s -> $ARTIFACTS/guest-top.log"
 fi
 # Play Store self-updates kill Maps mid-run and grow the AVD (decisions 1.2); idempotent, also in setup-emulator.sh.
 a shell pm disable-user --user 0 com.android.vending >/dev/null 2>&1 || log "could not disable the Play Store"
