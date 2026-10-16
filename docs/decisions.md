@@ -124,3 +124,7 @@ Adding a widget: long-press `bitpit.launcher:id/clock` → `Add Custom Widget` �
 
 - **Widget stacks:** E2E runs with our widget as the single custom widget (free-tier Niagara on the emulator). The stack under the notes widget (scenarios 1 and 6) is checked manually by the user on the Pixel 10 with Niagara Pro — done for 0.1.0 (swipe → tap → navigation in ~2 s).
 - **Scenario 5 (process death):** after `am force-stop`, Android 16 masks the widget until the first tap (system behaviour, nothing to fix). Ordinary process death (`am kill`) keeps the widget and the first tap navigates. The suite asserts both; the spec stays as written.
+
+## 5.x Icons: inherit from Niagara (user decision, 2026-10-16)
+
+Supersedes the icon conclusion of 1.6. The widget reads Anycon glyphs from the installed Niagara at runtime and draws them in a pack/palette chosen in our widget config, re-creating Niagara's per-pack compositing (from resources if defined there, otherwise from the decompiled code). Accepted limits: new Niagara packs/styles need our re-implementation; the user's Niagara pack/palette choice is private and is picked again in our config; Android offers no API for a launcher's themed icons. The own Sticker-style set (5.1) stays as the fallback. The widget stays a widget (pinned shortcuts, which Niagara would theme itself, were considered and rejected: they lose the grid).
