@@ -1,17 +1,23 @@
 package io.github.dreadboy.navigationshortcuts
 
+import io.github.dreadboy.navigationshortcuts.anycons.settings.AnyconSettings
+import io.github.dreadboy.navigationshortcuts.anycons.settings.AnyconStyle
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
 /**
- * Icon reference, resolved to a drawable only when the widget renders (spec: Icons → Storage).
- * [source] is "builtin" (bundled Material-style set) today; Phase 5 adds "niagara" (see [IconResolver]).
+ * Icon reference, resolved only when the widget renders (spec: Icons → Storage).
+ * - `builtin`: bundled Material-style icon by name ([BuiltInIcons]).
+ * - `niagara`: Anycon glyph `ic_ip_<name>` read from the installed Niagara and drawn in the widget's style
+ *   ([IconRendering]); falls back to a built-in icon ([NiagaraGlyphs.fallbackFor]) whenever it can't be drawn.
  */
 @Serializable
 data class IconRef(val source: String, val name: String) {
     companion object {
         const val SOURCE_BUILTIN = "builtin"
+        const val SOURCE_NIAGARA = "niagara"
         fun builtin(name: String) = IconRef(SOURCE_BUILTIN, name)
+        fun niagara(glyphName: String) = IconRef(SOURCE_NIAGARA, glyphName)
     }
 }
 
@@ -28,12 +34,16 @@ data class Entry(
     val id: String = UUID.randomUUID().toString(),
 )
 
-/** Per-widget config, stored as JSON under `widget_<appWidgetId>` (decisions 0.4). Entries fill left→right, top→bottom. */
+/**
+ * Per-widget config, stored as JSON under `widget_<appWidgetId>` (decisions 0.4). Entries fill left→right, top→bottom.
+ * [style] is how Niagara glyphs are drawn on this widget (decisions 5.5); 0.2.0 configs have none and get the default.
+ */
 @Serializable
 data class WidgetConfig(
     val rows: Int = DEFAULT_ROWS,
     val cols: Int = DEFAULT_COLS,
     val entries: List<Entry> = emptyList(),
+    val style: AnyconSettings = DEFAULT_STYLE,
 ) {
     val capacity: Int get() = rows * cols
     val isFull: Boolean get() = entries.size >= capacity
@@ -69,6 +79,10 @@ data class WidgetConfig(
         const val DEFAULT_ROWS = 1
         const val DEFAULT_COLS = 4
         const val MAX_SIZE = 6
+        const val MIN_SIZE = 1
+
+        /** Sticker with the Coral palette: the pack the user runs in Niagara on the phone (decisions 5.5). */
+        val DEFAULT_STYLE = AnyconSettings(style = AnyconStyle.Sticker(AnyconStyle.Sticker.Palette.CORAL))
     }
 }
 

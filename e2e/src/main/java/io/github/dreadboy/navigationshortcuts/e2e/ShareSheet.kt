@@ -100,12 +100,3 @@ class ShareSheet(private val d: E2eDevice) {
         const val CID_FALLBACK = "Google Maps shared a link without the address"
     }
 }
-
-/** The empty-cell tip dialog. */
-class EmptyCellTip(private val d: E2eDevice) {
-    fun assertShownAndDismiss() {
-        d.waitFor(By.pkg(E2e.APP).text(E2e.TIP_MESSAGE), E2e.LONG, "empty-cell tip '${E2e.TIP_MESSAGE}'")
-        d.waitFor(By.pkg(E2e.APP).res("android", "button1").text("OK"), what = "tip OK button").click()
-        d.waitGone(By.pkg(E2e.APP).text(E2e.TIP_MESSAGE), what = "empty-cell tip")
-    }
-}

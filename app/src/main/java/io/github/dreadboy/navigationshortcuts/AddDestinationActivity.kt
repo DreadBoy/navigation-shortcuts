@@ -18,7 +18,6 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
-import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.RadioButton
@@ -58,7 +57,10 @@ class AddDestinationActivity : Activity() {
     private lateinit var addButton: Button
     private lateinit var form: View
 
-    private var icon: IconRef = IconRef.builtin(BuiltInIcons.PIN)
+    private var icon: IconRef = IconGuess.refFor(BuiltInIcons.PIN)
+
+    /** One id per share: seeds the icon's look (same as on the widget) and keeps pending/pin idempotent (decisions 3.3). */
+    private val entryId = java.util.UUID.randomUUID().toString()
     private var iconChosenByUser = false
     private var resolved = false
     private var state = StoreState()
@@ -119,6 +121,7 @@ class AddDestinationActivity : Activity() {
         chips.setOnCheckedChangeListener { _, checkedId ->
             selectedWidget = chipWidgets[checkedId]
             updateMode()
+            setIcon(icon) // drawn in the chosen widget's style
         }
 
         val text = sharedText(intent)
@@ -264,6 +267,7 @@ class AddDestinationActivity : Activity() {
             selectedWidget = widgetIds.firstOrNull()
             if (multiple) chips.check(firstChip)
             updateMode()
+            setIcon(icon)
         }
     }
 
@@ -326,7 +330,7 @@ class AddDestinationActivity : Activity() {
     }
 
     private fun currentEntry(): Entry =
-        Entry(label = labelInput.text.toString().trim(), destination = destinationInput.text.toString().trim(), icon = icon)
+        Entry(label = labelInput.text.toString().trim(), destination = destinationInput.text.toString().trim(), icon = icon, id = entryId)
 
     private fun onPrimary() {
         when (mode) {
@@ -439,44 +443,21 @@ class AddDestinationActivity : Activity() {
         gridTip.visibility = View.GONE
     }
 
+    /** Icon style of the widget the place goes to (the default style when there is none yet). */
+    private fun currentStyle() = selectedWidget?.let { state.configs[it]?.style } ?: WidgetConfig.DEFAULT_STYLE
+
     private fun setIcon(ref: IconRef) {
         icon = ref
-        iconButton.setImageResource(IconResolver.drawableRes(ref))
+        val sizePx = (40 * resources.displayMetrics.density).toInt()
+        IconImages.bind(iconButton, scope, ref, currentStyle(), entryId, sizePx)
         iconButton.contentDescription = getString(R.string.change_icon) + ": " + ref.name
     }
 
     private fun showIconPicker() {
-        val sizePx = (56 * resources.displayMetrics.density).toInt()
-        val marginPx = (6 * resources.displayMetrics.density).toInt()
-        val grid = GridLayout(this).apply {
-            columnCount = 4
-            setPadding(marginPx * 3, marginPx * 3, marginPx * 3, 0)
+        IconPicker.show(this, scope, currentStyle(), entryId, icon) { picked ->
+            iconChosenByUser = true
+            setIcon(picked)
         }
-        lateinit var dialog: AlertDialog
-        for ((name, res) in BuiltInIcons.all) {
-            grid.addView(ImageButton(this).apply {
-                setImageResource(res)
-                setBackgroundResource(R.drawable.icon_button_background)
-                scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-                setPadding(marginPx, marginPx, marginPx, marginPx)
-                contentDescription = name
-                layoutParams = GridLayout.LayoutParams().apply {
-                    width = sizePx
-                    height = sizePx
-                    setMargins(marginPx, marginPx, marginPx, marginPx)
-                }
-                setOnClickListener {
-                    iconChosenByUser = true
-                    setIcon(IconRef.builtin(name))
-                    dialog.dismiss()
-                }
-            })
-        }
-        dialog = AlertDialog.Builder(this)
-            .setTitle(R.string.pick_icon)
-            .setView(grid)
-            .setNegativeButton(R.string.cancel, null)
-            .show()
     }
 
     private companion object {

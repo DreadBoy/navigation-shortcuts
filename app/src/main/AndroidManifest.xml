@@ -7,6 +7,8 @@
 
     <queries>
         <package android:name="com.google.android.apps.maps" />
+        <!-- Anycon glyphs and textures are read from the installed Niagara at runtime (decisions 5.3). -->
+        <package android:name="bitpit.launcher" />
     </queries>
 
     <application
@@ -18,7 +20,8 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.NavShort.Config">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -40,14 +43,20 @@
             </intent-filter>
         </activity>
 
-        <!-- Empty widget cell → "share a place from Google Maps" tip. Own task, gone from recents. -->
+        <!-- Per-widget config (PLAN 4.1): launcher configure/reconfigure ("Change widget settings" in Niagara), empty
+             widget cells (own task) and the app's widget list. Exported because the launcher starts it. -->
         <activity
-            android:name=".EmptyCellTipActivity"
+            android:name=".WidgetConfigActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
             android:excludeFromRecents="true"
-            android:exported="false"
-            android:noHistory="true"
+            android:exported="true"
+            android:label="@string/config_title"
             android:taskAffinity=""
-            android:theme="@style/Theme.NavShort.Transparent" />
+            android:theme="@style/Theme.NavShort.Config">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <receiver
             android:name=".NavigationWidgetProvider"

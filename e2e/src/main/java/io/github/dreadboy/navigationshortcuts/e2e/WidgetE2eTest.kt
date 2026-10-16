@@ -54,14 +54,21 @@ class WidgetE2eTest {
         assertNull("custom widget still placed after Remove", niagara.placedWidget())
     }
 
-    /** Empty cell → tip "Share a place from Google Maps to add it here" (MVP; config screen is Phase 4). */
+    /**
+     * Spec Flow 4: an empty cell opens the config screen for this widget, which keeps the "share a place from Google
+     * Maps" tip as a hint; Cancel leaves the widget unchanged.
+     */
     @Test
-    fun emptyCellTap_showsShareTip() {
+    fun emptyCellTap_opensConfigWithShareTip() {
         niagara.addOurWidget()
         niagara.assertWidgetCells(emptyList(), E2e.DEFAULT_CELLS)
 
         niagara.emptyCells()[1].click()
-        EmptyCellTip(d).assertShownAndDismiss()
+        val config = ConfigScreen(d).awaitShown()
+        assertTrue("share tip in the config screen: '${config.hint()}'", config.hint().contains("share any place from Google Maps"))
+        assertEquals(emptyList<String>(), config.entries())
+        assertEquals(1 to 4, config.rows() to config.cols())
+        config.cancel()
 
         niagara.assertWidgetCells(emptyList(), E2e.DEFAULT_CELLS)
     }

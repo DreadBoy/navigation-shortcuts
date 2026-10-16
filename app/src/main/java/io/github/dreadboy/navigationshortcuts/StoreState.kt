@@ -46,6 +46,23 @@ data class StoreState(
     }
 
     /**
+     * Config screen "Save" (decisions 4.1): [edited] (grid, style, entries in their new order) replaces the widget's
+     * config. The screen edited a snapshot ([original]); entries that reached the widget meanwhile (a share while the
+     * screen was open: not in [original], not in [edited]) are kept and appended. Nothing is ever dropped: if the
+     * entries don't fit the edited grid it grows (columns first, then rows); beyond 6×6 the rest goes to pending.
+     */
+    fun saveEdited(widgetId: Int, original: WidgetConfig, edited: WidgetConfig): StoreState {
+        val known = (original.entries + edited.entries).map { it.id }.toSet()
+        val addedMeanwhile = configs[widgetId]?.entries.orEmpty().filter { it.id !in known }
+        val (config, leftover) = edited.copy(entries = emptyList()).plusGrowing(edited.entries + addedMeanwhile)
+        val placedIds = config.entries.map { it.id }.toSet()
+        return copy(
+            configs = configs + (widgetId to config),
+            pending = pending.filterNot { it.id in placedIds } + leftover.filterNot { e -> pending.any { it.id == e.id } },
+        )
+    }
+
+    /**
      * requestPinAppWidget success callback: the launcher placed [widgetId] for [entry]. If the widget's first
      * update already took the entry over from the pending list (or it is on any other widget), nothing is
      * added again; otherwise it is added, growing the grid if needed.

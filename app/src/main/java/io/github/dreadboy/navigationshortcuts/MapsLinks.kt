@@ -179,6 +179,10 @@ object MapsShareParser {
             } ?: return Resolution.Failed(sharedName.orEmpty(), fallbackDestination, FailureKind.UNEXPECTED, "no redirect from the link")
             else -> return Resolution.Failed(sharedName.orEmpty(), fallbackDestination, FailureKind.NOT_MAPS, "not a Google Maps link")
         }
+        coordinateQuery(fullUrl)?.let { latLng ->
+            // Maps 25.11 shares a coordinate search as `goo.gl/maps/<id>` redirecting to `maps.google.com/?q=<lat>,<lng>`.
+            return Resolution.Resolved(sharedName ?: DROPPED_PIN, latLng, hasCoordinates = true)
+        }
         if (!isFullMapsUrl(fullUrl)) {
             return Resolution.Failed(sharedName.orEmpty(), fallbackDestination, FailureKind.UNEXPECTED, "unexpected redirect")
         }

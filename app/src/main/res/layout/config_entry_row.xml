@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One destination in the config screen: icon (tap = picker), label + destination (tap = edit), delete, drag handle. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/entry_row"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/colorBackground"
+    android:gravity="center_vertical"
+    android:minHeight="64dp"
+    android:orientation="horizontal"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <ImageButton
+        android:id="@+id/entry_icon"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:background="@drawable/icon_preview_background"
+        android:padding="4dp"
+        android:scaleType="fitCenter" />
+
+    <LinearLayout
+        android:id="@+id/entry_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:background="?android:attr/selectableItemBackground"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/entry_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Medium" />
+
+        <TextView
+            android:id="@+id/entry_destination"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?android:attr/textColorSecondary" />
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/entry_edit"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_edit" />
+
+    <ImageButton
+        android:id="@+id/entry_delete"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_delete" />
+
+    <ImageView
+        android:id="@+id/entry_drag"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_drag_handle" />
+</LinearLayout>

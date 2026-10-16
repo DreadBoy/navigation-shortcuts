@@ -110,6 +110,35 @@ class Niagara(private val d: E2eDevice) {
     }
 
     /**
+     * Spec scenario 7: long-press our placed widget → Niagara's "Change widget settings" (shown for widgets with a
+     * configure activity + `reconfigurable`, decisions 1.4a). Our config screen should open.
+     */
+    fun changeWidgetSettings() {
+        goHome()
+        val slot = d.find(widgetSlot)?.findObject(res(E2e.NIAGARA, "container"))
+            ?: throw AssertionError("no custom widget to long-press")
+        val c = slot.visibleCenter
+        longPress(c.x, c.y)
+        d.waitFor(menuItem.text("Change widget settings"), what = "widget menu 'Change widget settings'").click()
+    }
+
+    /** Opens our app the way a user does on Niagara: app search (HOME on the home screen) → type → tap the app. */
+    fun openOurApp() {
+        goHome()
+        // On Niagara's home, HOME opens app search; a press during Niagara's settle animation can be swallowed, so
+        // press again (as a user would) up to three times.
+        var attempts = 0
+        while (!d.has(searchField) && attempts++ < 3) {
+            d.ui.pressHome()
+            d.ui.wait(Until.hasObject(searchField), 3_000)
+        }
+        val field = d.waitFor(searchField, what = "Niagara app search field (after $attempts HOME presses)")
+        field.text = "Navigation"
+        d.waitFor(menuItem.text(E2e.APP_LABEL), what = "our app in Niagara's search results").click()
+        d.waitFor(By.pkg(E2e.APP), E2e.LONG, "our app in the foreground")
+    }
+
+    /**
      * Widget IDs the system has bound to our provider, from `dumpsys appwidget`. Includes Niagara "ghosts" left by
      * "Replace widget", which only uninstalling the app clears (decisions 3.9).
      */

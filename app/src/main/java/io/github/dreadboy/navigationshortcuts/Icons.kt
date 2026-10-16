@@ -4,9 +4,9 @@ import androidx.annotation.DrawableRes
 import java.util.Locale
 
 /**
- * Built-in Material-style icon set (PLAN 3.2): the default for new entries, the picker and the name guess.
- * Direct `R.drawable` references (never getIdentifier), so release resource shrinking keeps every icon.
- * Order = picker order.
+ * Built-in Material-style icon set (PLAN 3.2): the fallback for Niagara glyphs, the icons for concepts Niagara has no
+ * glyph for (stadium, pool, mountain, parking) and the only set when Niagara is missing. Direct `R.drawable`
+ * references (never getIdentifier), so release resource shrinking keeps every icon. Order = picker order.
  */
 object BuiltInIcons {
     const val PIN = "pin"
@@ -34,21 +34,69 @@ object BuiltInIcons {
 }
 
 /**
- * Resolves a stored [IconRef] to a drawable for RemoteViews and the share sheet. Only `builtin` exists today.
- * Phase 5 adds `niagara` (icons loaded from Niagara at runtime) as another branch here, with the built-in icon of
- * the same name as its fallback. Unknown source or name → built-in pin.
+ * Niagara Anycon glyph names (resource `ic_ip_<name>` in `bitpit.launcher`, decisions 5.2/5.5) that the name guess
+ * uses, and the built-in icon each falls back to when the glyph can't be loaded.
+ */
+object NiagaraGlyphs {
+    /** Built-in concept → Niagara glyph. Concepts missing here have no Niagara glyph (stadium, pool, mountain, parking). */
+    val forConcept: Map<String, String> = mapOf(
+        BuiltInIcons.PIN to "act_location",
+        "home" to "cat_home",
+        "work" to "cat_office",
+        "gym" to "cat_fitness",
+        "school" to "cat_education",
+        "shop" to "cat_shopping",
+        "restaurant" to "cat_food",
+        "cafe" to "act_cup",
+        "hospital" to "cat_health",
+        "airport" to "cat_air_travel",
+    )
+
+    private val fallback: Map<String, String> = forConcept.entries.associate { (concept, glyph) -> glyph to concept } +
+        mapOf(
+            "act_home" to "home",
+            "act_briefcase" to "work",
+            "cat_jobs" to "work",
+            "cat_educational_game" to "school",
+            "cat_children" to "school",
+            "cat_doctor_game" to "hospital",
+            "cat_flight_simulator_game" to "airport",
+            "cat_cars" to "parking",
+            "cat_soccer_game" to "stadium",
+            "cat_maps_and_navigation" to BuiltInIcons.PIN,
+        )
+
+    /** Built-in icon used when Niagara glyph [glyphName] can't be drawn. */
+    fun fallbackFor(glyphName: String): String = fallback[glyphName] ?: BuiltInIcons.PIN
+
+    /** Glyphs never offered in the picker: weather glyphs use colour attributes the packs don't define (decisions 5.2). */
+    fun isPickable(glyphName: String): Boolean =
+        (glyphName.startsWith("cat_") || glyphName.startsWith("act_")) && !glyphName.startsWith("act_weather_")
+
+    /** Glyphs that render broken in a pack (48×48 viewport with a 12,12 pivot, PLAN backlog): hidden for Sticker. */
+    val brokenInSticker = setOf("act_pause_circled_48", "act_play_circled_48")
+
+    /** "cat_air_travel" → "air travel" (picker label and search text). */
+    fun displayName(glyphName: String): String = glyphName.substringAfter('_').replace('_', ' ')
+}
+
+/**
+ * Resolves a stored [IconRef] to a built-in drawable: the icon itself for `builtin`, the fallback for `niagara`
+ * (used whenever the Niagara glyph can't be drawn). Unknown source or name → built-in pin.
  */
 object IconResolver {
     @DrawableRes
     fun drawableRes(icon: IconRef): Int = when (icon.source) {
         IconRef.SOURCE_BUILTIN -> BuiltInIcons.drawable(icon.name)
+        IconRef.SOURCE_NIAGARA -> BuiltInIcons.drawable(NiagaraGlyphs.fallbackFor(icon.name))
         else -> null
     } ?: R.drawable.ic_place_pin
 }
 
 /**
  * Cheap guess of an icon from words in the place name (Maps shares no category when signed out,
- * decisions 1.5). Slovenian and English words; anything else → pin.
+ * decisions 1.5). Slovenian and English words. The concept maps to a Niagara glyph first (decisions 5.5), then to the
+ * built-in icon (concepts Niagara lacks); anything else → Niagara's location pin.
  */
 object IconGuess {
     /** Token must equal one of these (short words that would otherwise match too much as prefixes). */
@@ -74,12 +122,19 @@ object IconGuess {
         "parkirišč" to "parking", "parking" to "parking",
     )
 
-    fun guess(text: String): IconRef {
+    /** The concept (built-in icon name) for [text], or [BuiltInIcons.PIN]. */
+    fun concept(text: String): String {
         val tokens = text.lowercase(Locale.ROOT).split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
         for (token in tokens) {
-            exact[token]?.let { return IconRef.builtin(it) }
-            prefixes.firstOrNull { token.startsWith(it.first) }?.let { return IconRef.builtin(it.second) }
+            exact[token]?.let { return it }
+            prefixes.firstOrNull { token.startsWith(it.first) }?.let { return it.second }
         }
-        return IconRef.builtin(BuiltInIcons.PIN)
+        return BuiltInIcons.PIN
     }
+
+    fun guess(text: String): IconRef = refFor(concept(text))
+
+    /** Niagara glyph for [concept] if Niagara has one, else the built-in icon. */
+    fun refFor(concept: String): IconRef =
+        NiagaraGlyphs.forConcept[concept]?.let { IconRef.niagara(it) } ?: IconRef.builtin(concept)
 }

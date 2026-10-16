@@ -11,11 +11,47 @@
     <string name="preview_work">Work</string>
     <string name="preview_gym">Gym</string>
 
-    <!-- Empty-cell tip -->
-    <string name="tip_title">Empty slot</string>
-    <string name="tip_message">Share a place from Google Maps to add it here.</string>
-    <string name="tip_open_maps">Open Google Maps</string>
     <string name="ok">OK</string>
+
+    <!-- App screen (PLAN 4.2) -->
+    <string name="main_widgets">Your widgets</string>
+    <string name="main_no_widgets">No navigation widget placed yet.</string>
+    <string name="main_open_widget">Settings for widget: %1$s</string>
+
+    <!-- Config screen (PLAN 4.1) -->
+    <string name="config_title">Widget settings</string>
+    <string name="config_share_tip">Tip: share any place from Google Maps to this app (Share → Add to navigation widget).</string>
+    <string name="config_grid">Grid</string>
+    <string name="config_rows">Rows</string>
+    <string name="config_cols">Columns</string>
+    <string name="minus">−</string>
+    <string name="plus">+</string>
+    <string name="rows_minus">Fewer rows</string>
+    <string name="rows_plus">More rows</string>
+    <string name="cols_minus">Fewer columns</string>
+    <string name="cols_plus">More columns</string>
+    <string name="grid_shrink_blocked">The grid can\'t be smaller than the number of destinations (%1$d). Delete one first.</string>
+    <string name="config_style">Icon style</string>
+    <string name="style_preview">Icon style preview</string>
+    <string name="config_pack">Pack</string>
+    <string name="config_shape">Shape</string>
+    <string name="config_color">Colour (theme-colour palettes)</string>
+    <string name="color_swatch">Colour %1$s</string>
+    <string name="niagara_missing_style">Niagara isn\'t installed: destinations show built-in icons.</string>
+    <string name="config_destinations">Destinations</string>
+    <string name="config_no_destinations">No destinations yet. Add one manually or share a place from Google Maps.</string>
+    <string name="add_manually">Add manually</string>
+    <string name="add_destination">Add destination</string>
+    <string name="edit_destination">Edit destination</string>
+    <string name="save">Save</string>
+    <string name="edit_entry">Edit %1$s</string>
+    <string name="delete_entry">Delete %1$s</string>
+    <string name="reorder_entry">Drag to reorder %1$s</string>
+    <string name="icon_for_entry">Change icon for %1$s</string>
+    <string name="no_widget_id">This widget no longer exists.</string>
+    <string name="search_icons">Search icons</string>
+    <string name="builtin_icon">Built-in %1$s</string>
+    <string name="niagara_missing_icons">Niagara isn\'t installed: only built-in icons are available.</string>
 
     <!-- Share sheet -->
     <string name="share_target_label">Add to navigation widget</string>

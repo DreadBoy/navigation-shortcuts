@@ -27,8 +27,8 @@ android {
         applicationId = "io.github.dreadboy.navigationshortcuts"
         minSdk = 31
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -81,6 +81,7 @@ if (!releaseSigningAvailable) {
 }
 
 dependencies {
+    implementation(project(":anycons"))
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)

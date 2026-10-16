@@ -1,5 +1,7 @@
 package io.github.dreadboy.navigationshortcuts
 
+import io.github.dreadboy.navigationshortcuts.anycons.settings.AnyconSettings
+import io.github.dreadboy.navigationshortcuts.anycons.settings.AnyconStyle
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -132,15 +134,62 @@ class StoreStateTest {
     }
 
     @Test
+    fun saveEditedReplacesConfigInEditedOrder() {
+        val a = entry("a"); val b = entry("b"); val c = entry("c")
+        val original = WidgetConfig(1, 4, listOf(a, b, c))
+        val s = StoreState(configs = mapOf(5 to original))
+        val edited = WidgetConfig(2, 2, listOf(c, a), style = AnyconSettings(style = AnyconStyle.Marble()))
+        assertEquals(edited, s.saveEdited(5, original, edited).configs[5])
+    }
+
+    @Test
+    fun saveEditedKeepsEntriesAddedMeanwhile() {
+        val a = entry("a"); val b = entry("b"); val shared = entry("shared")
+        val original = WidgetConfig(1, 2, listOf(a, b))
+        // A share added "shared" (growing to 1×3) while the config screen was open.
+        val s = StoreState(configs = mapOf(5 to WidgetConfig(1, 3, listOf(a, b, shared))))
+        val edited = WidgetConfig(1, 2, listOf(b)) // user deleted a
+        val saved = s.saveEdited(5, original, edited).configs[5]!!
+        assertEquals(listOf(b, shared), saved.entries)
+        assertEquals(1 to 2, saved.rows to saved.cols)
+    }
+
+    @Test
+    fun saveEditedNeverDropsEntries() {
+        val many = (1..5).map { entry("e$it") }
+        val original = WidgetConfig(1, 4, emptyList())
+        val tooSmall = WidgetConfig(1, 2, many) // UI blocks this; the store still keeps everything
+        val saved = StoreState().saveEdited(5, original, tooSmall).configs[5]!!
+        assertEquals(many, saved.entries)
+        assertTrue(saved.capacity >= 5)
+        val huge = (1..40).map { entry("h$it") }
+        val after = StoreState().saveEdited(5, original, WidgetConfig(6, 6, huge))
+        assertEquals(36, after.configs[5]!!.entries.size)
+        assertEquals(huge.drop(36), after.pending)
+    }
+
+    @Test
     fun configJsonFormat() {
         val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
         val config = WidgetConfig(1, 4, listOf(Entry("Home", "46.05,14.5", IconRef.builtin("home"), id = "x")))
         val text = json.encodeToString(WidgetConfig.serializer(), config)
-        assertEquals(
-            """{"rows":1,"cols":4,"entries":[{"label":"Home","destination":"46.05,14.5","icon":{"source":"builtin","name":"home"},"id":"x"}]}""",
+        assertTrue(
             text,
+            text.startsWith(
+                """{"rows":1,"cols":4,"entries":[{"label":"Home","destination":"46.05,14.5","icon":{"source":"builtin","name":"home"},"id":"x"}],"style":{"style":{"type":"sticker","palette":"coral"}""",
+            ),
         )
         assertEquals(config, json.decodeFromString(WidgetConfig.serializer(), text))
+        // A 0.2.0 config (no style) loads with the default style and keeps its entries (no migration).
+        val v020 = json.decodeFromString(
+            WidgetConfig.serializer(),
+            """{"rows":1,"cols":4,"entries":[{"label":"Stožice Stadium","destination":"Stožice","icon":{"source":"builtin","name":"stadium"},"id":"s"}]}""",
+        )
+        assertEquals(WidgetConfig.DEFAULT_STYLE, v020.style)
+        assertEquals(IconRef.builtin("stadium"), v020.entries.single().icon)
+        // Another style round-trips.
+        val watercolor = config.copy(style = AnyconSettings(style = AnyconStyle.Watercolor(), seedColor = 0xFF2E9D57.toInt()))
+        assertEquals(watercolor, json.decodeFromString(WidgetConfig.serializer(), json.encodeToString(WidgetConfig.serializer(), watercolor)))
         // Entries without an id (hand-written or older) still load.
         val noId = json.decodeFromString(
             WidgetConfig.serializer(),

@@ -174,6 +174,26 @@ class MapsShareParserTest {
         assertEquals("-33.86,151.2", MapsShareParser.coordinateQuery("https://maps.google.com/?q=-33.86,151.2"))
     }
 
+    /** Maps 25.11: a coordinate search is shared as goo.gl/maps short link redirecting to `maps.google.com/?q=lat,lng`. */
+    @Test
+    fun coordinateSearchShortLinkRedirectIsADroppedPin() {
+        var fetched: String? = null
+        val result = MapsShareParser.resolve("https://goo.gl/maps/AbCdEf123") { url ->
+            fetched = url
+            "https://maps.google.com/?q=47.000000,14.500000&entry=gps&g_ep=CAESBzI1LjExLjE"
+        }
+        assertEquals("https://goo.gl/maps/AbCdEf123", fetched)
+        assertEquals(Resolution.Resolved(MapsShareParser.DROPPED_PIN, "47.000000,14.500000", hasCoordinates = true), result)
+        val named = MapsShareParser.resolve("Parking spot\nhttps://maps.app.goo.gl/xyz") {
+            "https://maps.google.com/?q=46.05,14.5&entry=gps"
+        } as Resolution.Resolved
+        assertEquals("Parking spot", named.label)
+        assertEquals("46.05,14.5", named.destination)
+        // A text query in the redirect is still not a known shape.
+        val text = MapsShareParser.resolve("https://goo.gl/maps/AbCdEf123") { "https://maps.google.com/?q=Bled&entry=gps" }
+        assertEquals(FailureKind.UNEXPECTED, (text as Resolution.Failed).kind)
+    }
+
     @Test
     fun nonCoordinateQueriesAreNotDroppedPins() {
         assertNull(MapsShareParser.coordinateQuery("https://maps.google.com/?q=Bled"))

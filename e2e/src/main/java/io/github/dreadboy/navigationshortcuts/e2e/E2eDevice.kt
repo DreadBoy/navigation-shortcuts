@@ -27,9 +27,6 @@ object E2e {
     /** Content description of an empty widget cell (empty_cell_description). */
     const val EMPTY_CELL = "Empty shortcut slot"
 
-    /** Empty-cell tip text (tip_message). */
-    const val TIP_MESSAGE = "Share a place from Google Maps to add it here."
-
     /** Cells of a newly placed widget (default 1×4 grid). */
     const val DEFAULT_CELLS = 4
 

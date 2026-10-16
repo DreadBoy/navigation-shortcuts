@@ -22,16 +22,27 @@ class GoogleMaps(private val d: E2eDevice) {
     private val navigationWelcomeDialog: BySelector get() = res(E2e.MAPS, "navigation_welcome_title_text")
     private val dialogGotIt: BySelector get() = By.pkg(E2e.MAPS).res("android", "button1")
 
+    /**
+     * Google Play services' location-settings check that Maps requests now and then before navigating ("To continue,
+     * your device will need to use Location Accuracy", No thanks / Turn on; `LocationSettingsCheckerActivity`, 2 of
+     * ~40 navigation assertions in the 0.3.0 runs). It sits over Maps and holds navigation. A user taps "Turn on"; the
+     * suite does the same (the setting then sticks). Nothing else is dismissed.
+     */
+    private val locationAccuracyDialog: BySelector get() = By.pkg(GMS).textContains("use Location Accuracy")
+    private val locationAccuracyTurnOn: BySelector get() = By.pkg(GMS).text("Turn on")
+
     /** Asserts that Maps is the foreground app and shows active turn-by-turn navigation. */
     fun assertNavigationInForeground(timeoutMs: Long = E2e.LONG) {
         val deadline = System.currentTimeMillis() + timeoutMs
         // The dialog sits on top of the navigation screen, so check it on every round, including the last.
-        while (dismissNavigationWelcomeIfShown() || !d.ui.wait(Until.hasObject(activeNavigation), POLL_MS)) {
+        while (dismissNavigationWelcomeIfShown() || acceptLocationAccuracyIfShown() ||
+            !d.ui.wait(Until.hasObject(activeNavigation), POLL_MS)
+        ) {
             if (System.currentTimeMillis() > deadline) {
                 throw AssertionError(
                     "Timed out after $timeoutMs ms waiting for Google Maps active navigation " +
                         "(foreground: ${d.ui.currentPackageName}; Maps intent: ${mapsLaunchIntent()}; " +
-                        "on screen: ${visibleMapsTexts()})",
+                        "on screen: ${visibleMapsTexts()}; foreground texts: ${foregroundTexts()})",
                 )
             }
         }
@@ -51,6 +62,23 @@ class GoogleMaps(private val d: E2eDevice) {
             val label = o.text?.takeIf { it.isNotBlank() } ?: o.contentDescription?.takeIf { it.isNotBlank() }
             label?.let { "'$it'" + (o.resourceName?.substringAfter(":id/")?.let { id -> "#$id" } ?: "") }
         }.distinct().take(40).joinToString(", ")
+
+    /** Failure diagnostics: texts of whatever is in front (e.g. a Play services dialog over Maps). */
+    private fun foregroundTexts(): String {
+        val pkg = d.ui.currentPackageName ?: return ""
+        if (pkg == E2e.MAPS) return "(Maps)"
+        return d.ui.findObjects(By.pkg(pkg)).mapNotNull { it.text?.takeIf { t -> t.isNotBlank() } }
+            .distinct().take(20).joinToString(", ") { "'$it'" }
+    }
+
+    /** Taps "Turn on" on Play services' Location Accuracy prompt if it is showing; true if it did. */
+    private fun acceptLocationAccuracyIfShown(): Boolean {
+        if (!d.has(locationAccuracyDialog)) return false
+        Log.w("NavShortE2e", "Play services 'Location Accuracy' prompt over Maps: tapping Turn on")
+        d.waitFor(locationAccuracyTurnOn, what = "'Turn on' in the Location Accuracy prompt").click()
+        d.waitGone(locationAccuracyDialog, what = "Location Accuracy prompt")
+        return true
+    }
 
     /** Taps "Got it" on the navigation first-run dialog if it is showing; true if it did. */
     private fun dismissNavigationWelcomeIfShown(): Boolean {
@@ -157,6 +185,7 @@ class GoogleMaps(private val d: E2eDevice) {
     private companion object {
         const val TAG = "NavShortE2e"
         const val POLL_MS = 1_000L
+        const val GMS = "com.google.android.gms"
         const val MAPS_ACTIVITY = "com.google.android.apps.maps/com.google.android.maps.MapsActivity"
 
         /** Same rules as android.net.Uri.encode (what our widget uses for `q=`). */
