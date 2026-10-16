@@ -37,7 +37,7 @@ class GhostWidgetE2eTest {
     }
 
     @Test
-    fun replaceWidget_shareLandsInVisibleWidget_ghostIsFlagged_andSaveForNewWidgetReachesTheNextWidget() {
+    fun replaceWidget_shareLandsInVisibleWidget_ghostIsFlagged_andCreateNewWidgetReachesTheNextWidget() {
         val ghostsBefore = niagara.boundWidgetIdsOfOurApp().size
 
         // 1. A widget with one place.
@@ -61,6 +61,7 @@ class GhostWidgetE2eTest {
         assertTrue("chooser shown with both widgets: $rows", rows.size >= 2)
         assertEquals("newest widget first and preselected: $rows", "Empty widget" to true, rows.first())
         assertTrue("ghost listed with its old place: $rows", rows.any { it.first.startsWith(Places.STOZICE.label) })
+        assertEquals("'+ Create new widget' last: $rows", ShareSheet.CREATE_NEW to false, rows.last())
         sheet.tapAdd()
         sheet.waitGone()
         niagara.assertWidgetCells(listOf(Places.CASTLE.label), E2e.DEFAULT_CELLS - 1)
@@ -72,10 +73,15 @@ class GhostWidgetE2eTest {
         assertEquals("visible widget first and preselected: $rows", Places.CASTLE.label to true, rows.first())
         val ghostRow = rows.single { it.first.startsWith(Places.STOZICE.label) }
         assertTrue("ghost flagged: $rows", ghostRow.first.endsWith("not seen on home screen"))
+        assertEquals("flagged ghost listed after the visible widget, before '+ Create new widget': $rows", ghostRow, rows[rows.size - 2])
         assertEquals("no warning for the preselected visible widget", "", sheet.widgetHint())
 
-        // 5. Way out: "Save for a new widget" → the next widget placed in Niagara contains the place.
-        sheet.tapSaveForNewWidget()
+        // 5. Way out: "+ Create new widget" → pin request (Niagara's sheet; left with Back, as its "Okay" with a widget
+        //    present gets stuck, decisions 3.2/5.7) → the place stays pending → the next widget placed contains it.
+        sheet.selectCreateNew()
+        sheet.tapPrimary("Add")
+        d.waitFor(By.pkg(E2e.NIAGARA).text("Add to home screen"), E2e.LONG, "Niagara's 'Add to home screen' pin sheet")
+        d.ui.pressBack()
         d.waitFor(By.res(E2e.APP, "message_text").textStartsWith("Saved."), E2e.LONG, "'Saved…' explanation")
         sheet.tapPrimary("OK")
         sheet.waitGone()

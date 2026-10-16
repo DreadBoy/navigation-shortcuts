@@ -24,6 +24,8 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -31,9 +33,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Share target "Add to navigation widget" (spec Flow 2, PLAN 3.5–3.7): a bottom sheet over Google Maps.
- * Resolves the shared link once (background thread, short timeout), lets the user adjust label / destination /
- * icon, picks the widget (hidden when there is one), grows a full grid in one tap, or places a new widget.
+ * Share target "Add to navigation widget" (spec Flow 2, PLAN 3.5–3.7, decisions 5.7): a two-step bottom sheet over
+ * Google Maps. Step 1 resolves the shared link once (background thread, short timeout) and lets the user agree on
+ * icon, label and destination (Cancel / Next). Step 2 picks the widget — always shown, newest first, "not seen"
+ * widgets last, "+ Create new widget" as the last row (Back / Add); a full grid grows in one tap.
  */
 class AddDestinationActivity : Activity() {
 
@@ -48,7 +51,8 @@ class AddDestinationActivity : Activity() {
     private lateinit var widgetHeading: TextView
     private lateinit var widgetHint: TextView
     private lateinit var gridTip: View
-    private lateinit var placeNewButton: Button
+    private lateinit var cancelButton: Button
+    private lateinit var widgetStep: View
     private lateinit var chips: RadioGroup
     private lateinit var messageText: TextView
     private lateinit var growButtons: View
@@ -66,10 +70,16 @@ class AddDestinationActivity : Activity() {
     private var state = StoreState()
     private var widgetIds: List<Int> = emptyList()
     private val chipWidgets = mutableMapOf<Int, Int>() // chip view id → appWidgetId
+    private var createNewChip = View.NO_ID
     private var notSeen: Map<Int, Long> = emptyMap() // appWidgetId → render pending since (flagged widgets only)
+
+    /** Chosen widget; null = "+ Create new widget". Before the user picks: the first row (newest visible widget). */
     private var selectedWidget: Int? = null
     private var mode = Mode.ADD
+    private var step = Step.DETAILS
     private var busy = false
+    private var backCallback: Any? = null
+    private var widgetsLoaded = false
 
     /** Set when requestPinAppWidget showed the launcher's confirmation; checked when we come back. */
     private var pinRequestedFor: Entry? = null
@@ -78,7 +88,10 @@ class AddDestinationActivity : Activity() {
     /** Widget IDs bound when the pin was requested; a new ID afterwards means the launcher placed the widget. */
     private var pinBaseline: Set<Int> = emptySet()
 
-    private enum class Mode { ADD, GRID_FULL, NO_WIDGET, DONE }
+    /** Step 2 state for the selected row; CREATE_NEW = "+ Create new widget". */
+    private enum class Mode { ADD, GRID_FULL, CREATE_NEW, DONE }
+
+    private enum class Step { DETAILS, WIDGET }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,7 +109,8 @@ class AddDestinationActivity : Activity() {
         widgetHeading = findViewById(R.id.widget_heading)
         widgetHint = findViewById(R.id.widget_hint)
         gridTip = findViewById(R.id.grid_tip)
-        placeNewButton = findViewById(R.id.place_new_button)
+        cancelButton = findViewById(R.id.cancel_button)
+        widgetStep = findViewById(R.id.widget_step)
         chips = findViewById(R.id.widget_chips)
         messageText = findViewById(R.id.message_text)
         growButtons = findViewById(R.id.grow_buttons)
@@ -105,10 +119,9 @@ class AddDestinationActivity : Activity() {
         addButton = findViewById(R.id.add_button)
         form = findViewById(R.id.form)
 
-        findViewById<Button>(R.id.cancel_button).setOnClickListener { finish() }
+        cancelButton.setOnClickListener { if (step == Step.WIDGET && mode != Mode.DONE) showStep(Step.DETAILS) else finish() }
         iconButton.setOnClickListener { showIconPicker() }
         addButton.setOnClickListener { onPrimary() }
-        placeNewButton.setOnClickListener { saveForNewWidget() }
         addColumnButton.setOnClickListener { addToSelected(Growth.COLUMN) }
         addRowButton.setOnClickListener { addToSelected(Growth.ROW) }
         val refresh = object : TextWatcher {
@@ -119,6 +132,7 @@ class AddDestinationActivity : Activity() {
         labelInput.addTextChangedListener(refresh)
         destinationInput.addTextChangedListener(refresh)
         chips.setOnCheckedChangeListener { _, checkedId ->
+            if (checkedId == View.NO_ID) return@setOnCheckedChangeListener
             selectedWidget = chipWidgets[checkedId]
             updateMode()
             setIcon(icon) // drawn in the chosen widget's style
@@ -131,8 +145,31 @@ class AddDestinationActivity : Activity() {
             return
         }
         setIcon(icon)
+        showStep(Step.DETAILS)
         loadWidgets()
         resolve(text)
+    }
+
+    /** Step 1 (icon, label, destination: Cancel / Next) or step 2 (widget list: Back / Add). Edits are kept. */
+    private fun showStep(next: Step) {
+        step = next
+        val details = next == Step.DETAILS
+        form.visibility = if (details) View.VISIBLE else View.GONE
+        widgetStep.visibility = if (details) View.GONE else View.VISIBLE
+        cancelButton.setText(if (details) R.string.cancel else R.string.back)
+        setBackToDetails(!details)
+        updateMode()
+    }
+
+    /** System Back in step 2 returns to step 1 (predictive back: no onBackPressed on targetSdk 36). */
+    private fun setBackToDetails(enabled: Boolean) {
+        val dispatcher = onBackInvokedDispatcher
+        (backCallback as? OnBackInvokedCallback)?.let { dispatcher.unregisterOnBackInvokedCallback(it) }
+        backCallback = null
+        if (!enabled) return
+        val callback = OnBackInvokedCallback { if (mode != Mode.DONE) showStep(Step.DETAILS) else finish() }
+        dispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+        backCallback = callback
     }
 
     override fun onPause() {
@@ -150,6 +187,7 @@ class AddDestinationActivity : Activity() {
             if ((ids - pinBaseline).isNotEmpty() && pinRequestedFor != null) {
                 Log.i(TAG, "pin confirmed (sheet stopped): widgets now $ids")
                 pinRequestedFor = null
+                Toast.makeText(applicationContext, R.string.added_to_new_widget, Toast.LENGTH_LONG).show()
                 finish()
             }
         }
@@ -165,6 +203,7 @@ class AddDestinationActivity : Activity() {
             val ids = withContext(Dispatchers.IO) { store.boundWidgetIds() }
             if ((ids - pinBaseline).isNotEmpty()) {
                 Log.i(TAG, "pin confirmed: widgets now $ids")
+                Toast.makeText(applicationContext, R.string.added_to_new_widget, Toast.LENGTH_LONG).show()
                 finish()
             } else {
                 Log.i(TAG, "pin not confirmed; '${entry.label}' stays pending")
@@ -250,6 +289,7 @@ class AddDestinationActivity : Activity() {
                 older = getString(R.string.chip_older),
                 notSeenSuffix = getString(R.string.chip_not_seen),
             )
+            chips.setOnCheckedChangeListener(null)
             chips.removeAllViews()
             chipWidgets.clear()
             var firstChip = View.NO_ID
@@ -261,11 +301,21 @@ class AddDestinationActivity : Activity() {
                     text = labels.getValue(id)
                 })
             }
-            val multiple = widgetIds.size > 1
-            widgetHeading.visibility = if (multiple) View.VISIBLE else View.GONE
-            chips.visibility = if (multiple) View.VISIBLE else View.GONE
+            // Last row: always a way to a new widget (also the way out of a ghost widget, decisions 3.9/5.7).
+            createNewChip = View.generateViewId()
+            chips.addView(RadioButton(this@AddDestinationActivity).apply {
+                this.id = createNewChip
+                setText(R.string.create_new_widget)
+            })
+            chips.check(if (firstChip != View.NO_ID) firstChip else createNewChip)
+            chips.setOnCheckedChangeListener { _, checkedId ->
+                if (checkedId == View.NO_ID) return@setOnCheckedChangeListener
+                selectedWidget = chipWidgets[checkedId]
+                updateMode()
+                setIcon(icon)
+            }
             selectedWidget = widgetIds.firstOrNull()
-            if (multiple) chips.check(firstChip)
+            widgetsLoaded = true
             updateMode()
             setIcon(icon)
         }
@@ -276,20 +326,28 @@ class AddDestinationActivity : Activity() {
         val config = id?.let { state.configs[it] ?: WidgetConfig() }
         mode = when {
             mode == Mode.DONE -> Mode.DONE
-            id == null -> Mode.NO_WIDGET
+            id == null -> Mode.CREATE_NEW
             config!!.isFull -> Mode.GRID_FULL
             else -> Mode.ADD
         }
+        if (mode == Mode.DONE) return
+        if (step == Step.DETAILS) {
+            messageText.visibility = View.GONE
+            growButtons.visibility = View.GONE
+            gridTip.visibility = View.GONE
+            addButton.visibility = View.VISIBLE
+            addButton.setText(R.string.next)
+            updateButtons()
+            return
+        }
         val since = id?.let { notSeen[it] }
-        widgetHint.visibility = if (since != null && mode != Mode.DONE) View.VISIBLE else View.GONE
+        widgetHint.visibility = if (since != null) View.VISIBLE else View.GONE
         if (since != null) {
             widgetHint.text = getString(
                 R.string.not_seen_hint,
                 DateUtils.formatDateTime(this, since, DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_SHOW_DATE),
             )
         }
-        // Secondary way out when widgets exist but the chosen one may not be the one on screen.
-        placeNewButton.visibility = if (id != null && mode != Mode.DONE) View.VISIBLE else View.GONE
         gridTip.visibility =
             if (mode == Mode.GRID_FULL && config!!.canGrowRows() && config.rows + 1 >= TALL_GRID_ROWS) View.VISIBLE else View.GONE
         when (mode) {
@@ -308,12 +366,12 @@ class AddDestinationActivity : Activity() {
                 addRowButton.visibility = if (config.canGrowRows()) View.VISIBLE else View.GONE
                 addButton.visibility = View.GONE
             }
-            Mode.NO_WIDGET -> {
+            Mode.CREATE_NEW -> {
                 messageText.visibility = View.VISIBLE
-                messageText.setText(R.string.no_widget)
+                messageText.setText(if (widgetIds.isEmpty()) R.string.no_widget else R.string.create_new_hint)
                 growButtons.visibility = View.GONE
                 addButton.visibility = View.VISIBLE
-                addButton.setText(if (pinSupported()) R.string.place_new_widget else R.string.save_for_later)
+                addButton.setText(R.string.add)
             }
             Mode.DONE -> Unit
         }
@@ -323,8 +381,7 @@ class AddDestinationActivity : Activity() {
     private fun updateButtons() {
         if (mode == Mode.DONE) return
         val ready = resolved && !busy && labelInput.text.isNotBlank() && destinationInput.text.isNotBlank()
-        addButton.isEnabled = ready
-        placeNewButton.isEnabled = ready
+        addButton.isEnabled = ready && (step == Step.DETAILS || widgetsLoaded)
         addColumnButton.isEnabled = ready
         addRowButton.isEnabled = ready
     }
@@ -333,9 +390,13 @@ class AddDestinationActivity : Activity() {
         Entry(label = labelInput.text.toString().trim(), destination = destinationInput.text.toString().trim(), icon = icon, id = entryId)
 
     private fun onPrimary() {
+        if (step == Step.DETAILS && mode != Mode.DONE) {
+            showStep(Step.WIDGET)
+            return
+        }
         when (mode) {
             Mode.ADD -> addToSelected(null)
-            Mode.NO_WIDGET -> placeNewWidget()
+            Mode.CREATE_NEW -> placeNewWidget()
             Mode.DONE -> finish()
             Mode.GRID_FULL -> Unit
         }
@@ -364,29 +425,13 @@ class AddDestinationActivity : Activity() {
         }
     }
 
-    /**
-     * Secondary action while widgets exist (way out when the chosen one isn't on screen, decisions 3.9): save to the
-     * pending list for the next widget the user places. No requestPinAppWidget here: with a widget already placed,
-     * free Niagara answers it with an unusable "Create Widget Stack?" state (decisions 3.2).
-     */
-    private fun saveForNewWidget() {
-        val entry = currentEntry()
-        busy = true
-        updateButtons()
-        scope.launch {
-            withContext(Dispatchers.IO) { store.update { it.addPending(entry) } }
-            busy = false
-            Log.i(TAG, "saved '${entry.label}' for a new widget")
-            showDone(getString(R.string.saved_for_new_widget))
-        }
-    }
-
     private fun pinSupported(): Boolean = AppWidgetManager.getInstance(this).isRequestPinAppWidgetSupported
 
     /**
-     * "Place new widget" (primary with no widget, secondary otherwise): the entry goes to the pending list first (a
-     * newly placed widget takes it over), then the launcher is asked to pin a widget; the success callback carries the
-     * entry too (decisions 3.3).
+     * "+ Create new widget" (decisions 5.7, supersedes the 3.2 "only when none is bound" rule): the entry goes to the
+     * pending list first (a newly placed widget takes it over), then the launcher is asked to pin a widget — also when
+     * widgets already exist; the success callback carries the entry too (decisions 3.3). Pin unsupported, refused or
+     * cancelled → the place stays pending and the sheet says so.
      */
     private fun placeNewWidget() {
         val entry = currentEntry()
@@ -437,8 +482,9 @@ class AddDestinationActivity : Activity() {
         addButton.visibility = View.VISIBLE
         addButton.isEnabled = true
         addButton.setText(R.string.ok)
-        findViewById<View>(R.id.cancel_button).visibility = View.GONE
-        placeNewButton.visibility = View.GONE
+        cancelButton.visibility = View.GONE
+        widgetStep.visibility = View.GONE
+        setBackToDetails(false)
         widgetHint.visibility = View.GONE
         gridTip.visibility = View.GONE
     }

@@ -83,8 +83,15 @@ class WidgetE2eTest {
         assertEquals("label prefilled from the shared place", STOZICE.label, sheet.label())
         val destination = sheet.destination()
         assertTrue("destination resolved from the link: '$destination'", destination.startsWith(STOZICE.label))
-        assertTrue("icon guessed from the name: ${sheet.iconDescription()}", sheet.iconDescription().endsWith("cat_soccer_game"))
-        assertFalse("widget chooser hidden with exactly one widget", sheet.isChooserShown())
+        val icon = sheet.iconDescription()
+        assertTrue("icon guessed from the name: $icon", icon.endsWith("cat_soccer_game"))
+        // Step 2 is always shown: the one widget (preselected), then "+ Create new widget".
+        assertEquals(listOf("Empty widget" to true, ShareSheet.CREATE_NEW to false), sheet.chooser())
+        // Back returns to step 1 with everything kept.
+        sheet.back()
+        assertEquals(STOZICE.label, sheet.label())
+        assertEquals(destination, sheet.destination())
+        assertEquals(icon, sheet.iconDescription())
         sheet.tapAdd()
 
         sheet.waitGone()
@@ -193,7 +200,8 @@ class WidgetE2eTest {
         maps.openPlace(STOZICE.query, STOZICE.suggestion)
         shareCurrentPlace()
         assertTrue("no-widget message: '${sheet.message()}'", sheet.message().startsWith("No navigation widget"))
-        sheet.tapPrimary("Place new widget")
+        assertEquals("only '+ Create new widget', preselected", listOf(ShareSheet.CREATE_NEW to true), sheet.chooser())
+        sheet.tapPrimary("Add")
 
         niagara.answerPinRequest(confirm = true)
         niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
@@ -212,7 +220,7 @@ class WidgetE2eTest {
     fun noWidget_share_pinCancelled_placeIsPending_andNextWidgetGetsIt() {
         maps.openPlace(STOZICE.query, STOZICE.suggestion)
         shareCurrentPlace()
-        sheet.tapPrimary("Place new widget")
+        sheet.tapPrimary("Add")
 
         niagara.answerPinRequest(confirm = false)
         d.waitFor(By.res(E2e.APP, "message_text").textStartsWith("Saved."), E2e.LONG, "'Saved…' explanation in the sheet")
@@ -223,6 +231,37 @@ class WidgetE2eTest {
         assertNull("no widget placed after cancelling", niagara.placedWidget())
         niagara.addOurWidget()
         niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
+    }
+
+    /**
+     * Decisions 5.7: "+ Create new widget" requests pinning also while a widget exists. Niagara's stuck overlay after
+     * "Okay" in that case is a known Niagara bug (decisions 3.2), so the test goes only as far as Niagara's
+     * "Add to home screen" sheet, leaves it with Back, and checks the pending fallback: the sheet says the place is
+     * saved, the existing widget is unchanged, and the next widget placed takes the place over.
+     */
+    @Test
+    fun widgetExists_createNewWidget_requestsPin_backKeepsPlacePending() {
+        niagara.addOurWidget()
+        shareAndAdd(STOZICE)
+        niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
+
+        maps.openPlace(CASTLE.query, CASTLE.suggestion)
+        shareCurrentPlace()
+        sheet.selectCreateNew()
+        assertTrue("create-new hint: '${sheet.message()}'", sheet.message().contains("new navigation widget"))
+        sheet.tapPrimary("Add")
+        d.waitFor(By.pkg(E2e.NIAGARA).text("Add to home screen"), E2e.LONG, "Niagara's 'Add to home screen' pin sheet")
+        d.ui.pressBack()
+        d.waitFor(By.res(E2e.APP, "message_text").textStartsWith("Saved."), E2e.LONG, "'Saved…' confirmation in the sheet")
+        sheet.tapPrimary("OK")
+        sheet.waitGone()
+
+        niagara.goHome()
+        niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
+        // The pending place goes into the next widget placed (here: after removing the current one).
+        niagara.removeCustomWidgetIfPresent()
+        niagara.addOurWidget()
+        niagara.assertWidgetCells(listOf(CASTLE.label), E2e.DEFAULT_CELLS - 1)
     }
 
     /** On a Maps place page: Share → our sheet, resolved (re-shares once on Maps' cid fallback, decisions 3.5). */

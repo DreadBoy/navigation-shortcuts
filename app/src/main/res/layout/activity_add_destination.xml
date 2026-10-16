@@ -93,20 +93,27 @@
                     android:text="@string/resolving"
                     android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small" />
             </LinearLayout>
+        </LinearLayout>
+
+        <!-- Step 2 (decisions 5.7): which widget; always shown, "+ Create new widget" last. -->
+        <LinearLayout
+            android:id="@+id/widget_step"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
 
             <TextView
                 android:id="@+id/widget_heading"
                 style="@style/SheetFieldLabel"
-                android:text="@string/field_widget"
-                android:visibility="gone" />
+                android:text="@string/field_widget" />
 
-            <!-- One row per widget (vertical, so no chip can hide off-screen); newest first (decisions 3.9). -->
+            <!-- One row per widget (vertical, so no row can hide off-screen); newest first (decisions 3.9). -->
             <RadioGroup
                 android:id="@+id/widget_chips"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone" />
+                android:orientation="vertical" />
 
             <TextView
                 android:id="@+id/widget_hint"
@@ -183,16 +190,6 @@
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <!-- Way out when the chosen widget isn't visible (Niagara ghost IDs, decisions 3.9). -->
-            <Button
-                android:id="@+id/place_new_button"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/save_for_new_widget"
-                android:textAllCaps="false"
-                android:visibility="gone" />
-
             <Button
                 android:id="@+id/add_button"
                 style="?android:attr/buttonBarButtonStyle"
@@ -201,7 +198,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:enabled="false"
-                android:text="@string/add" />
+                android:text="@string/next" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -74,10 +74,11 @@
     <string name="add_column">+1 column</string>
     <string name="add_row">+1 row</string>
     <string name="no_widget">No navigation widget on your home screen yet.</string>
-    <string name="place_new_widget">Place new widget</string>
-    <string name="save_for_new_widget">Save for a new widget</string>
-    <string name="saved_for_new_widget">Saved. Add another \"Navigation Shortcuts\" widget in Niagara (long-press a widget or the clock → Add Custom Widget); this place will be in it.</string>
-    <string name="save_for_later">Save for later</string>
+    <string name="next">Next</string>
+    <string name="back">Back</string>
+    <string name="create_new_widget">+ Create new widget</string>
+    <string name="create_new_hint">A new navigation widget with this place will be added to your home screen.</string>
+    <string name="added_to_new_widget">Added to a new widget</string>
     <string name="pin_requested">Confirm adding the widget. If you cancel, the place stays saved and appears in the next navigation widget you add.</string>
     <string name="saved_pending">Saved. Add the \"Navigation Shortcuts\" widget to your home screen (long-press the clock → Add Custom Widget in Niagara); this place will be in it.</string>
     <string name="nothing_shared">Nothing to add: share a place from Google Maps.</string>
@@ -85,7 +86,7 @@
     <string name="chip_newest">newest</string>
     <string name="chip_older">older</string>
     <string name="chip_not_seen">not seen on home screen</string>
-    <string name="not_seen_hint">This widget hasn\'t appeared on your home screen since %1$s. If you can\'t find it there, tap \"Save for a new widget\".</string>
+    <string name="not_seen_hint">This widget hasn\'t appeared on your home screen since %1$s. If you can\'t find it there, choose \"+ Create new widget\".</string>
     <string name="grid_tall_tip">With 3 or more rows, make the widget taller: long-press it in Niagara → Move and resize.</string>
 
     <!-- Link resolution failures (decisions 3.5) -->
