@@ -180,11 +180,14 @@ class ConfigE2eTest {
         maps.assertNavigationIntentFor(TIVOLI.second)
     }
 
-    /** Screen area of the cell's icon (cell bounds above its label). */
+    /** Screen area of the cell's icon view. */
     private fun iconArea(label: String): Bitmap {
         val labelView = niagara.cell(label)
         val cell = d.waitFor(By.pkg(E2e.APP).desc("Navigate to $label"), what = "cell '$label'")
-        val area = Rect(cell.visibleBounds.left, cell.visibleBounds.top, cell.visibleBounds.right, labelView.visibleBounds.top)
+        // The icon view itself: icons are 44 dp and left-aligned in a wider cell (decisions 5b U/E19).
+        val icon = cell.findObject(By.res(E2e.APP, "cell_icon")) ?: throw AssertionError("cell '$label' has no icon view")
+        val area = Rect(icon.visibleBounds)
+        assertTrue("icon of '$label' above its label", area.bottom <= labelView.visibleBounds.top)
         val shot = screenshot()
         return Bitmap.createBitmap(shot, area.left, area.top, area.width(), area.height())
     }

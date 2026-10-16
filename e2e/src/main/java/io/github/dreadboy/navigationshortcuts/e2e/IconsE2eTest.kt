@@ -89,6 +89,9 @@ class IconsE2eTest {
         assertEquals("stored icon", "niagara" to "cat_soccer_game", storedIcon(STOZICE.label))
         SystemClock.sleep(1_000)
         val shared = iconArea(STOZICE.label)
+        // Default icon size = Niagara's home-screen app icon, 44 dp (decisions 5b U).
+        val expectedPx = 44 * InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        assertEquals("icon width like Niagara's 44 dp app icons", expectedPx.toDouble(), shared.width.toDouble(), 2.0)
         saveScreenshot("widget-shared-stadium")
         assertTrue("shared cell is a colourful Niagara glyph (${colourful(shared)})", colourful(shared) > MIN_COLOURFUL)
 
@@ -144,13 +147,16 @@ class IconsE2eTest {
         return iconArea(label)
     }
 
-    /** Screen area of the cell's icon (cell bounds above its label). */
+    /** Screen area of the cell's icon view. */
     private fun iconArea(label: String): Bitmap {
         niagara.goHome()
         d.ui.wait(Until.hasObject(By.pkg(E2e.APP).desc("Navigate to $label")), E2e.LONG)
         val labelView = niagara.cell(label)
         val cell = d.waitFor(By.pkg(E2e.APP).desc("Navigate to $label"), what = "cell '$label'")
-        val area = Rect(cell.visibleBounds.left, cell.visibleBounds.top, cell.visibleBounds.right, labelView.visibleBounds.top)
+        // The icon view itself: icons are 44 dp and left-aligned in a wider cell (decisions 5b U/E19).
+        val icon = cell.findObject(By.res(E2e.APP, "cell_icon")) ?: throw AssertionError("cell '$label' has no icon view")
+        val area = Rect(icon.visibleBounds)
+        assertTrue("icon of '$label' above its label", area.bottom <= labelView.visibleBounds.top)
         val shot = screenshot()
         return Bitmap.createBitmap(shot, area.left, area.top, area.width(), area.height())
     }
