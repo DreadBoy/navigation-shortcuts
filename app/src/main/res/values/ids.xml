@@ -3,6 +3,7 @@
     <!-- Views created in code (icon picker, config screen dialogs), so UI tests can find them by id. -->
     <item name="icon_search" type="id" />
     <item name="icon_grid" type="id" />
+    <item name="icon_empty" type="id" />
     <item name="dialog_label" type="id" />
     <item name="dialog_destination" type="id" />
 </resources>

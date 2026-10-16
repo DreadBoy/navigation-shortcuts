@@ -68,12 +68,16 @@ class IconsE2eTest {
         d.waitFor(By.res(E2e.APP, "icon_grid"), E2e.LONG, "picker grid")
         assertTrue("no 'Niagara missing' note", !d.has(By.pkg(E2e.APP).textStartsWith("Niagara isn't installed")))
         saveScreenshot("picker-niagara-only")
-        for (name in BUILT_IN_NAMES) {
+        for ((name, glyph) in BUILT_IN_NAMES) {
             search.text = name
             SystemClock.sleep(300)
             val descs = gridDescriptions()
             assertTrue("no built-in entry for '$name': $descs", descs.none { it.startsWith("Built-in") })
+            // The concept name is a search alias of its mapped Niagara glyph.
+            assertTrue("'$name' finds the '$glyph' glyph: $descs", glyph in descs)
         }
+        search.text = "qqqzzz"
+        d.waitFor(By.res(E2e.APP, "icon_empty").text("No icons match"), what = "'No icons match'")
         search.text = "soccer"
         d.waitFor(By.res(E2e.APP, "icon_grid").hasChild(By.desc("soccer game")), what = "soccer glyph in the picker")
         d.waitFor(By.pkg(E2e.APP).text("Cancel"), what = "picker Cancel").click()
@@ -195,10 +199,12 @@ class IconsE2eTest {
     private companion object {
         val STOZICE = Places.STOZICE
 
-        /** The 14 built-in (Material) icon names. */
+        /** The 14 built-in (Material) icon names → picker label of the mapped Niagara glyph (decisions 5.6). */
         val BUILT_IN_NAMES = listOf(
-            "pin", "home", "work", "gym", "stadium", "school", "pool", "shop", "restaurant", "cafe", "hospital",
-            "airport", "parking", "mountain",
+            "pin" to "location", "home" to "home", "work" to "office", "gym" to "fitness", "stadium" to "soccer game",
+            "school" to "education", "pool" to "jellyfish", "shop" to "shopping", "restaurant" to "food",
+            "cafe" to "cup", "hospital" to "health", "airport" to "air travel", "parking" to "cars",
+            "mountain" to "travel",
         )
 
         const val MIN_CHANGED = 0.05

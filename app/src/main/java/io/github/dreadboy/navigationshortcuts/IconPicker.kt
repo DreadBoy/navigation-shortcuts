@@ -53,7 +53,8 @@ object IconImages {
  * in the widget's [style] (searchable by name) while Niagara is readable; otherwise only the built-in Material set.
  */
 object IconPicker {
-    private data class Item(val ref: IconRef, val label: String, val description: String)
+    /** [search]: what the search field matches (label plus aliases, e.g. "pool" for the glyph mapped to it). */
+    private data class Item(val ref: IconRef, val label: String, val description: String, val search: String = label)
 
     fun show(
         activity: Activity,
@@ -72,9 +73,11 @@ object IconPicker {
             val niagara = installed && glyphs.isNotEmpty()
             val hidden = if (style.style is AnyconStyle.Sticker) NiagaraGlyphs.brokenInSticker else emptySet()
             val items = if (niagara) {
+                // The 14 concept names find their mapped glyph ("pool" → jellyfish, decisions 5.6).
+                val aliases = NiagaraGlyphs.forConcept.entries.groupBy({ it.value }, { it.key })
                 glyphs.filterNot { it in hidden }.map {
                     val name = NiagaraGlyphs.displayName(it)
-                    Item(IconRef.niagara(it), name, name)
+                    Item(IconRef.niagara(it), name, name, (listOf(name) + aliases[it].orEmpty()).joinToString(" "))
                 }
             } else {
                 BuiltInIcons.all.map { (name, _) ->
@@ -123,6 +126,12 @@ object IconPicker {
             })
         }
         var shown = all
+        val empty = TextView(activity).apply {
+            id = R.id.icon_empty
+            setText(R.string.no_icons_match)
+            setPadding(0, pad, 0, pad)
+            visibility = View.GONE
+        }
         lateinit var dialog: AlertDialog
         val adapter = object : BaseAdapter() {
             override fun getCount() = shown.size
@@ -164,14 +173,16 @@ object IconPicker {
                 dialog.dismiss()
             }
         }
+        root.addView(empty)
         root.addView(grid)
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 val q = s?.toString()?.trim()?.lowercase().orEmpty()
-                shown = if (q.isEmpty()) all else all.filter { q in it.label.lowercase() }
+                shown = if (q.isEmpty()) all else all.filter { q in it.search.lowercase() }
                 adapter.notifyDataSetChanged()
+                empty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
             }
         })
         dialog = AlertDialog.Builder(activity)

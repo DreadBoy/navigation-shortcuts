@@ -50,6 +50,7 @@
     <string name="icon_for_entry">Change icon for %1$s</string>
     <string name="no_widget_id">This widget no longer exists.</string>
     <string name="search_icons">Search icons</string>
+    <string name="no_icons_match">No icons match</string>
     <string name="builtin_icon">Built-in %1$s</string>
     <string name="niagara_missing_icons">Niagara isn\'t installed: only built-in icons are available.</string>
 
