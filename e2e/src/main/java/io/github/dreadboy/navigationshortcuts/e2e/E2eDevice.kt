@@ -21,8 +21,8 @@ object E2e {
     /** Widget description shown under the preview in Niagara's picker (widget_description). */
     const val WIDGET_DESCRIPTION = "Tap a destination to start Google Maps driving navigation"
 
-    /** Share-sheet label of our share target (share_target_label). */
-    const val SHARE_TARGET = "Add to navigation widget"
+    /** Label of our share target in Maps' share grid (share_target_label, decisions 5b E20). */
+    const val SHARE_TARGET = "Add to widget"
 
     /** Content description of an empty widget cell (empty_cell_description). */
     const val EMPTY_CELL = "Empty shortcut slot"

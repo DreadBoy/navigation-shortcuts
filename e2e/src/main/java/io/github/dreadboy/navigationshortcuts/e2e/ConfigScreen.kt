@@ -89,6 +89,30 @@ class ConfigScreen(private val d: E2eDevice) {
         d.waitGone(id("config_title"), E2e.LONG, "config screen after Cancel")
     }
 
+    /** System Back with unsaved changes → "Save changes?" (decisions 5b E1); taps [button] ("Save", "Discard", "Keep editing"). */
+    fun backAndAnswer(button: String) {
+        d.ui.pressBack()
+        d.waitFor(By.text("Save changes?"), what = "'Save changes?' dialog after Back")
+        val res = when (button) {
+            "Save" -> "button1"
+            "Discard" -> "button2"
+            "Keep editing" -> "button3"
+            else -> throw IllegalArgumentException(button)
+        }
+        val b = d.waitFor(By.res("android", res), what = "'$button' in the dialog")
+        assertEquals("dialog button", button.lowercase(), b.text.orEmpty().lowercase())
+        b.click()
+        d.waitGone(By.text("Save changes?"), what = "'Save changes?' dialog")
+        if (button != "Keep editing") d.waitGone(id("config_title"), E2e.LONG, "config screen after '$button'")
+    }
+
+    /** Taps Undo in the bar shown after a delete (decisions 5b E18). */
+    fun undo(label: String) {
+        d.waitFor(id("undo_text").text("Deleted $label"), what = "'Deleted $label' undo bar")
+        d.waitFor(id("undo_button"), what = "Undo").click()
+        scrollTo(id("entry_label").text(label))
+    }
+
     private fun fillDialog(label: String, destination: String) {
         d.waitFor(id("dialog_label"), what = "label field in the add dialog").text = label
         d.waitFor(id("dialog_destination"), what = "destination field in the add dialog").text = destination

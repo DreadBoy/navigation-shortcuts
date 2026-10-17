@@ -23,11 +23,56 @@ data class StoreState(
         return copy(configs = configs + (widgetId to config), pending = leftover)
     }
 
-    /** Drops configs of widgets that no longer exist ([validIds] = AppWidgetManager.getAppWidgetIds). */
-    fun prune(validIds: Collection<Int>): StoreState =
-        copy(configs = configs.filterKeys { it in validIds })
+    /**
+     * Removes configs of widgets that no longer exist ([validIds] = AppWidgetManager.getAppWidgetIds); their destinations
+     * are kept as in [delete] (a removal the launcher didn't report through onDeleted loses nothing either).
+     */
+    fun prune(validIds: Collection<Int>): StoreState = delete(configs.keys.filterNot { it in validIds })
 
-    fun delete(widgetIds: Collection<Int>): StoreState = copy(configs = configs - widgetIds.toSet())
+    /**
+     * A widget was removed (onDeleted, decisions 5b E5): its config goes, its destinations move to the pending list, so
+     * the next widget placed gets them back. Nothing is dropped and nothing is duplicated: an entry on a remaining widget
+     * (same [Entry.id]) is not added again. The widget's own places go first, in their order, ahead of older pending
+     * places (round 2): on a full next widget the overflow is the older pending ones.
+     *
+     * Launchers can report a "Replace" in either order. New widget placed first: its first update already created an
+     * empty config before the old widget's onDeleted arrives; so if a widget placed after the removed one (a higher ID)
+     * is still empty, the newest such widget takes the pending list over right away, exactly as it would have on its
+     * first update had onDeleted come first. Both orders end in the same state; beyond 6×6 the rest stays pending.
+     */
+    fun delete(widgetIds: Collection<Int>): StoreState {
+        val removed = widgetIds.toSet().filter { it in configs }.sorted()
+        if (removed.isEmpty()) return this
+        val remaining = configs - removed.toSet()
+        val known = remaining.values.flatMap { c -> c.entries.map { it.id } }.toMutableSet()
+        val moved = removed.flatMap { configs.getValue(it).entries }.filter { known.add(it.id) }
+        val after = StoreState(configs = remaining, pending = moved + pending.filterNot { it.id in known })
+        val adopter = remaining.filter { (id, config) -> id > removed.max() && config.entries.isEmpty() }.keys.maxOrNull()
+            ?: return after
+        val (config, leftover) = remaining.getValue(adopter).plusGrowing(after.pending)
+        return StoreState(configs = remaining + (adopter to config), pending = leftover)
+    }
+
+    /**
+     * Places stranded on a widget that isn't on the home screen any more (a ghost left by Niagara's "Replace widget",
+     * decisions 3.9; Niagara sends no onDeleted for it) move to the visible widget [to] (decisions 5b E5 round 2): they
+     * are appended in their order, the grid grows as usual (columns first, up to 6×6), the rest goes to the end of the
+     * pending list; [from] keeps its grid and style but no places, so nothing comes back twice. Entries already on
+     * another widget are only dropped from [from]. Null when there is nothing to move.
+     */
+    fun movePlaces(from: Int, to: Int): StoreState? {
+        val source = configs[from] ?: return null
+        if (from == to || source.entries.isEmpty()) return null
+        val base = ensureConfig(to)
+        val elsewhere = base.configs.filterKeys { it != from }.values.flatMap { c -> c.entries.map { it.id } }.toSet()
+        val moving = source.entries.filterNot { it.id in elsewhere }
+        val (target, leftover) = base.configs.getValue(to).plusGrowing(moving)
+        val leftoverIds = leftover.map { it.id }.toSet()
+        return base.copy(
+            configs = base.configs + (from to source.copy(entries = emptyList())) + (to to target),
+            pending = base.pending.filterNot { it.id in leftoverIds || target.contains(it.id) } + leftover,
+        )
+    }
 
     fun addPending(entry: Entry): StoreState =
         if (isPlaced(entry.id) || pending.any { it.id == entry.id }) this else copy(pending = pending + entry)

@@ -24,16 +24,17 @@ object StyleOptions {
     const val BRIGHT = "bright"
     const val STELLAR = "stellar"
 
+    /** In Niagara's own order (Themes → Edit Current Theme → App icons → Anycons, 1.16.33; decisions 5b E25). */
     val packs = listOf(
-        Choice(STICKER, "Sticker"),
         Choice(MATERIAL, "Material"),
+        Choice(STICKER, "Sticker"),
         Choice(DOTS, "Dots"),
         Choice(OUTLINE, "Outline"),
-        Choice(OUTLINE_CHROMA, "Outline Chroma"),
         Choice(WATERCOLOR, "Watercolor"),
         Choice(MARBLE, "Marble"),
         Choice(BRIGHT, "Bright"),
         Choice(STELLAR, "Stellar"),
+        Choice(OUTLINE_CHROMA, "Outline Chroma"),
     )
 
     val shapes = listOf(
@@ -61,7 +62,7 @@ object StyleOptions {
     private const val TEXT = "text"
     private const val DOT_SHAPE = "dot_shape"
 
-    private val thickness = Dimension(THICKNESS, "Line", listOf(Choice(Thickness.BOLD.name, "Bold"), Choice(Thickness.THIN.name, "Thin")))
+    private val thickness = Dimension(THICKNESS, "Line width", listOf(Choice(Thickness.BOLD.name, "Bold"), Choice(Thickness.THIN.name, "Thin")))
     private val appOrTheme = Dimension(
         PALETTE,
         "Palette",
@@ -113,10 +114,10 @@ object StyleOptions {
             thickness,
             Dimension(
                 TEXT,
-                "Text",
+                "Line colour",
                 listOf(
-                    Choice(AnyconStyle.Outline.TextMode.LIGHT_TEXT.name, "Light (dark wallpaper)"),
-                    Choice(AnyconStyle.Outline.TextMode.DARK_TEXT.name, "Dark (light wallpaper)"),
+                    Choice(AnyconStyle.Outline.TextMode.LIGHT_TEXT.name, "Light (for dark wallpapers)"),
+                    Choice(AnyconStyle.Outline.TextMode.DARK_TEXT.name, "Dark (for light wallpapers)"),
                 ),
             ),
         )
@@ -154,7 +155,11 @@ object StyleOptions {
         AnyconStyle.Stellar -> true
     }
 
-    private val SAMPLE_GLYPHS = listOf("cat_home", "cat_office", "cat_fitness", "cat_shopping")
+    /** Outline with the dark line colour is meant for light wallpapers: our screens show it on a light strip (E26). */
+    fun forLightWallpaper(style: AnyconStyle): Boolean =
+        style is AnyconStyle.Outline && style.textMode == AnyconStyle.Outline.TextMode.DARK_TEXT
+
+    private val SAMPLE_GLYPHS =listOf("cat_home", "cat_office", "cat_fitness", "cat_shopping")
 
     /**
      * Style preview icons (decisions 5b E17): the real destinations first (up to [count]); samples only fill the rest,

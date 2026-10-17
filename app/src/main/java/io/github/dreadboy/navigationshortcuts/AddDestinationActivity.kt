@@ -60,11 +60,20 @@ class AddDestinationActivity : ComponentActivity() {
     private lateinit var addRowButton: Button
     private lateinit var addButton: Button
     private lateinit var form: View
+    private lateinit var labelFitHint: TextView
+
+    /** Label and destination as the link resolved them; edits beyond these keep the sheet on an outside tap (E18). */
+    private var resolvedLabel: String? = null
+    private var resolvedDestination: String? = null
 
     private var icon: IconRef = IconGuess.refFor(BuiltInIcons.PIN)
 
     /** One id per share: seeds the icon's look (same as on the widget) and keeps pending/pin idempotent (decisions 3.3). */
-    private val entryId = java.util.UUID.randomUUID().toString()
+    private var entryId = java.util.UUID.randomUUID().toString()
+
+    /** Step 2 selection to re-apply after a recreation, once the widget list is loaded. */
+    private var restoredSelection: Int? = null
+    private var restoredCreateNew = false
     private var iconChosenByUser = false
     private var resolved = false
     private var state = StoreState()
@@ -125,6 +134,7 @@ class AddDestinationActivity : ComponentActivity() {
         addRowButton = findViewById(R.id.add_row_button)
         addButton = findViewById(R.id.add_button)
         form = findViewById(R.id.form)
+        labelFitHint = findViewById(R.id.label_fit_hint)
 
         cancelButton.setOnClickListener { if (step == Step.WIDGET && mode != Mode.DONE) showStep(Step.DETAILS) else finish() }
         iconButton.setOnClickListener { showIconPicker() }
@@ -134,7 +144,11 @@ class AddDestinationActivity : ComponentActivity() {
         val refresh = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) = updateButtons()
+            override fun afterTextChanged(s: Editable?) {
+                updateButtons()
+                keepOnOutsideTouchIfEdited()
+                updateLabelFit()
+            }
         }
         labelInput.addTextChangedListener(refresh)
         // Renaming the place ("Doma") re-guesses the icon until the user picks one (E12).
@@ -153,6 +167,7 @@ class AddDestinationActivity : ComponentActivity() {
             selectedWidget = chipWidgets[checkedId]
             updateMode()
             setIcon(icon) // drawn in the chosen widget's style
+            updateLabelFit()
         }
 
         val text = sharedText(intent)
@@ -161,10 +176,65 @@ class AddDestinationActivity : ComponentActivity() {
             finish()
             return
         }
-        setIcon(icon)
-        showStep(Step.DETAILS)
+        val saved = savedInstanceState?.getString(KEY_STATE)?.let { SheetState.fromJson(it) }
+        if (saved != null && saved.resolved) {
+            // Recreated (dark-mode switch, process death in the background): keep the edits, don't resolve again.
+            restore(saved)
+        } else {
+            setIcon(icon)
+            showStep(Step.DETAILS)
+            resolve(text)
+        }
         loadWidgets()
-        resolve(text)
+    }
+
+    /** Edits survive a recreation (decisions 5b E1/E18 round 2): see [SheetState]. */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val state = SheetState(
+            entryId = entryId,
+            label = labelInput.text.toString(),
+            destination = destinationInput.text.toString(),
+            destinationEditable = destinationInput.isEnabled,
+            status = statusText.text.toString(),
+            icon = icon,
+            iconChosenByUser = iconChosenByUser,
+            resolved = resolved,
+            resolvedLabel = resolvedLabel,
+            resolvedDestination = resolvedDestination,
+            widgetStep = step == Step.WIDGET,
+            selectedWidget = selectedWidget,
+            createNewSelected = widgetsLoaded && selectedWidget == null,
+            doneMessage = if (mode == Mode.DONE) messageText.text.toString() else null,
+            pinRequestedFor = pinRequestedFor,
+            pinBaseline = pinBaseline.toList(),
+            pausedSincePinRequest = pausedSincePinRequest,
+        )
+        outState.putString(KEY_STATE, state.toJson())
+    }
+
+    private fun restore(s: SheetState) {
+        Log.i(TAG, "restoring the sheet after a recreation (step ${if (s.widgetStep) 2 else 1})")
+        entryId = s.entryId
+        iconChosenByUser = s.iconChosenByUser
+        resolvedLabel = s.resolvedLabel
+        resolvedDestination = s.resolvedDestination
+        labelInput.setText(s.label)
+        destinationInput.setText(s.destination)
+        destinationInput.isEnabled = s.destinationEditable
+        statusText.text = s.status
+        progress.visibility = View.GONE
+        resolved = true
+        setIcon(s.icon)
+        restoredSelection = s.selectedWidget
+        restoredCreateNew = s.createNewSelected
+        pinRequestedFor = s.pinRequestedFor
+        pinBaseline = s.pinBaseline.toSet()
+        pausedSincePinRequest = s.pausedSincePinRequest
+        showStep(if (s.widgetStep) Step.WIDGET else Step.DETAILS)
+        if (s.doneMessage != null) showDone(s.doneMessage)
+        keepOnOutsideTouchIfEdited()
+        updateButtons()
     }
 
     /** Step 1 (icon, label, destination: Cancel / Next) or step 2 (widget list: Back / Add). Edits are kept. */
@@ -202,7 +272,7 @@ class AddDestinationActivity : ComponentActivity() {
             if ((ids - pinBaseline).isNotEmpty() && pinRequestedFor != null) {
                 Log.i(TAG, "pin confirmed (sheet stopped): widgets now $ids")
                 pinRequestedFor = null
-                Toast.makeText(applicationContext, R.string.added_to_new_widget, Toast.LENGTH_LONG).show()
+                Toast.makeText(applicationContext, getString(R.string.added_to_new_widget, currentEntry().label), Toast.LENGTH_LONG).show()
                 finish()
             }
         }
@@ -218,7 +288,7 @@ class AddDestinationActivity : ComponentActivity() {
             val ids = withContext(Dispatchers.IO) { store.boundWidgetIds() }
             if ((ids - pinBaseline).isNotEmpty()) {
                 Log.i(TAG, "pin confirmed: widgets now $ids")
-                Toast.makeText(applicationContext, R.string.added_to_new_widget, Toast.LENGTH_LONG).show()
+                Toast.makeText(applicationContext, getString(R.string.added_to_new_widget, entry.label), Toast.LENGTH_LONG).show()
                 finish()
             } else {
                 Log.i(TAG, "pin not confirmed; '${entry.label}' stays pending")
@@ -265,7 +335,11 @@ class AddDestinationActivity : ComponentActivity() {
             }
             if (!iconChosenByUser) setIcon(IconGuess.guess(labelInput.text.toString(), destinationInput.text.toString()))
             resolved = true
+            resolvedLabel = result.label // not the field: text typed while resolving counts as an edit
+            resolvedDestination = destinationInput.text.toString()
+            keepOnOutsideTouchIfEdited()
             updateButtons()
+            updateLabelFit()
         }
     }
 
@@ -322,17 +396,27 @@ class AddDestinationActivity : ComponentActivity() {
                 this.id = createNewChip
                 setText(R.string.create_new_widget)
             })
-            chips.check(if (firstChip != View.NO_ID) firstChip else createNewChip)
+            // After a recreation: the row the user had picked, if it still exists.
+            val restoredChip = when {
+                restoredCreateNew -> createNewChip
+                else -> chipWidgets.entries.firstOrNull { it.value == restoredSelection }?.key
+            }
+            val initialChip = restoredChip ?: if (firstChip != View.NO_ID) firstChip else createNewChip
+            restoredSelection = null
+            restoredCreateNew = false
+            chips.check(initialChip)
             chips.setOnCheckedChangeListener { _, checkedId ->
                 if (checkedId == View.NO_ID) return@setOnCheckedChangeListener
                 selectedWidget = chipWidgets[checkedId]
                 updateMode()
                 setIcon(icon)
+                updateLabelFit()
             }
-            selectedWidget = widgetIds.firstOrNull()
+            selectedWidget = chipWidgets[initialChip]
             widgetsLoaded = true
             updateMode()
             setIcon(icon)
+            updateLabelFit()
         }
     }
 
@@ -436,9 +520,9 @@ class AddDestinationActivity : ComponentActivity() {
                 updateMode()
                 return@launch
             }
-            val target = after.configs[id]?.summary().orEmpty()
-            Log.i(TAG, "added '${entry.label}' to widget $id: $target")
-            Toast.makeText(applicationContext, getString(R.string.added_to, target), Toast.LENGTH_LONG).show()
+            Log.i(TAG, "added '${entry.label}' to widget $id: ${after.configs[id]?.summary()}")
+            // Short (decisions 5b E23 round 2): the list of the other places didn't fit a toast.
+            Toast.makeText(applicationContext, getString(R.string.added_to_widget, entry.label), Toast.LENGTH_LONG).show()
             finish()
         }
     }
@@ -503,6 +587,7 @@ class AddDestinationActivity : ComponentActivity() {
         cancelButton.visibility = View.GONE
         widgetStep.visibility = View.GONE
         setBackToDetails(false)
+        setFinishOnTouchOutside(true) // nothing typed is lost any more: the place is added or saved
         widgetHint.visibility = View.GONE
         gridTip.visibility = View.GONE
     }
@@ -521,13 +606,38 @@ class AddDestinationActivity : ComponentActivity() {
         IconPicker.show(this, scope, currentStyle(), entryId, icon) { picked ->
             iconChosenByUser = true
             setIcon(picked)
+            keepOnOutsideTouchIfEdited()
         }
+    }
+
+    /**
+     * A stray tap outside the sheet must not drop what the user typed or picked (decisions 5b E18): while the label or
+     * destination differ from what the link gave, or an icon was picked, an outside tap doesn't close the sheet
+     * (Cancel and Back still do).
+     */
+    private fun keepOnOutsideTouchIfEdited() {
+        if (mode == Mode.DONE) return
+        val label = labelInput.text.toString()
+        val destination = destinationInput.text.toString()
+        val edited = iconChosenByUser || if (!resolved) label.isNotBlank() || destination.isNotBlank()
+        else label != resolvedLabel || destination != resolvedDestination
+        setFinishOnTouchOutside(!edited)
+    }
+
+    /** E14: how the label shows in a cell of the selected widget (default 1×4 for a new one), when it would be cut. */
+    private fun updateLabelFit() {
+        val config = selectedWidget?.let { state.configs[it] } ?: WidgetConfig()
+        LabelFitHint.update(labelFitHint, labelInput.text.toString(), config.cols, config.iconSize)
     }
 
     private companion object {
         const val TAG = "NavShortShare"
+        const val KEY_STATE = "navshort.sheet"
 
-        /** From this many rows the default Niagara slot (315×80 dp) gets too short; suggest Move and resize. */
-        const val TALL_GRID_ROWS = 3
+        /**
+         * From this many rows the default Niagara slot (315×80 dp) gets too short; suggest Move and resize. Same as the
+         * config screen ([WidgetConfigActivity.TALL_HINT_ROWS], decisions 5b E3): 44 dp icons + 16 sp labels need ~70 dp.
+         */
+        const val TALL_GRID_ROWS = WidgetConfigActivity.TALL_HINT_ROWS
     }
 }

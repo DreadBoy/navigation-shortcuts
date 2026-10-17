@@ -28,7 +28,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Share target: Google Maps → Share → "Add to navigation widget" (spec Flow 2). -->
+        <!-- Share target: Google Maps → Share → "Add to widget" (spec Flow 2; short label, decisions 5b E20). -->
         <activity
             android:name=".AddDestinationActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
@@ -59,6 +59,15 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+
+        <!-- The same config screen opened from the app screen: no own task affinity, so it stays in the app's task and a
+             relaunch from the launcher icon brings it back with unsaved edits (decisions 5b round 3). Not exported. -->
+        <activity
+            android:name=".AppTaskConfigActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
+            android:exported="false"
+            android:label="@string/config_title"
+            android:theme="@style/Theme.NavShort.Config" />
 
         <receiver
             android:name=".NavigationWidgetProvider"

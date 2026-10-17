@@ -48,8 +48,8 @@
                 android:orientation="horizontal">
 
                 <TextView
+                    style="@style/ConfigFieldLabel"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/config_rows" />
 
@@ -77,8 +77,8 @@
                 android:orientation="horizontal">
 
                 <TextView
+                    style="@style/ConfigFieldLabel"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/config_cols" />
 
@@ -151,27 +151,10 @@
 
                 <Spinner
                     android:id="@+id/style_pack"
+                    android:contentDescription="@string/config_pack"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    style="@style/ConfigFieldLabel"
-                    android:text="@string/config_icon_size" />
-
-                <Spinner
-                    android:id="@+id/icon_size"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:contentDescription="@string/config_icon_size" />
             </LinearLayout>
 
             <LinearLayout
@@ -193,6 +176,7 @@
 
                 <Spinner
                     android:id="@+id/style_shape"
+                    android:contentDescription="@string/config_shape"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
@@ -200,7 +184,9 @@
 
             <TextView
                 android:id="@+id/color_label"
-                style="@style/SheetFieldLabel"
+                style="@style/ConfigFieldLabel"
+                android:layout_width="wrap_content"
+                android:layout_marginTop="12dp"
                 android:text="@string/config_color" />
 
             <LinearLayout
@@ -209,6 +195,26 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:orientation="horizontal" />
+
+            <!-- After the pack's own settings (decisions 5b E25): size applies to every pack. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    style="@style/ConfigFieldLabel"
+                    android:text="@string/config_icon_size" />
+
+                <Spinner
+                    android:id="@+id/icon_size"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:contentDescription="@string/config_icon_size" />
+            </LinearLayout>
 
             <!-- Destinations -->
             <TextView
@@ -224,6 +230,13 @@
                 android:text="@string/config_no_destinations"
                 android:textColor="?android:attr/textColorSecondary" />
 
+            <!-- Places left on a widget Niagara replaced (decisions 5b E5 round 2). -->
+            <Button
+                android:id="@+id/stranded_bring_back"
+                style="@style/ConfigTextButton"
+                android:layout_marginStart="-12dp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/entry_list"
                 android:layout_width="match_parent"
@@ -232,10 +245,9 @@
 
             <Button
                 android:id="@+id/add_manual_button"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/add_manually" />
+                style="@style/ConfigTextButton"
+                android:layout_marginStart="-12dp"
+                android:text="@string/add_manually_plus" />
 
             <TextView
                 android:id="@+id/add_note"
@@ -246,6 +258,41 @@
                 android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
+
+    <!-- Undo after a delete (decisions 5b E18): a snackbar-like bar, no Material dependency. -->
+    <LinearLayout
+        android:id="@+id/undo_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/undo_bar_background"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/undo_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:accessibilityLiveRegion="polite"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="@color/undo_bar_text" />
+
+        <Button
+            android:id="@+id/undo_button"
+            style="@android:style/Widget.DeviceDefault.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/undo"
+            android:textAllCaps="false"
+            android:textColor="@color/undo_bar_action" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -258,15 +305,12 @@
 
         <Button
             android:id="@+id/config_cancel"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            style="@style/ConfigTextButton"
             android:text="@string/cancel" />
 
         <Button
             android:id="@+id/config_save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            style="@style/ConfigTextButton"
             android:text="@string/save" />
     </LinearLayout>
 </LinearLayout>

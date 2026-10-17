@@ -169,7 +169,7 @@ class GoogleMaps(private val d: E2eDevice) {
         d.waitFor(placeShareButton, E2e.LONG, "Share button on the Maps place page for '$suggestion'")
     }
 
-    /** On a Maps place page: Share → our target "Add to navigation widget" in Maps' share grid. */
+    /** On a Maps place page: Share → our target "Add to widget" in Maps' share grid. */
     fun shareCurrentPlaceToOurApp() {
         d.waitFor(placeShareButton, E2e.LONG, "Share button on the Maps place page").click()
         d.waitFor(By.pkg(E2e.MAPS).text(E2e.SHARE_TARGET), E2e.LONG, "'${E2e.SHARE_TARGET}' in Maps' share sheet").click()

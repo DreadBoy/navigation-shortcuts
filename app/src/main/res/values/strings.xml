@@ -3,7 +3,6 @@
     <string name="app_name">Navigation Shortcuts</string>
     <string name="widget_description">Tap a destination to start Google Maps driving navigation</string>
     <string name="navigate_to">Navigate to %1$s</string>
-    <string name="main_instructions">Long-press your home screen, open Widgets and add the \"Navigation Shortcuts\" widget.\n\nThen open a place in Google Maps, tap Share and pick \"Add to navigation widget\".</string>
 
     <!-- Widget -->
     <string name="empty_cell_description">Empty shortcut slot</string>
@@ -18,10 +17,42 @@
     <string name="main_widgets">Your widgets</string>
     <string name="main_no_widgets">No navigation widget placed yet.</string>
     <string name="main_open_widget">Settings for widget: %1$s</string>
+    <string name="main_widget_row_hint">Tap to edit destinations and look</string>
+    <string name="main_widget_row_not_seen">Not on your home screen (replaced in Niagara?)</string>
+    <plurals name="stranded_text">
+        <item quantity="one">A widget that is no longer on your home screen still holds 1 place: %2$s</item>
+        <item quantity="other">A widget that is no longer on your home screen still holds %1$d places: %2$s</item>
+    </plurals>
+    <plurals name="stranded_move">
+        <item quantity="one">Move 1 place to the widget on your home screen</item>
+        <item quantity="other">Move %1$d places to the widget on your home screen</item>
+    </plurals>
+    <plurals name="stranded_bring_back">
+        <item quantity="one">Bring back 1 place from a replaced widget</item>
+        <item quantity="other">Bring back %1$d places from a replaced widget</item>
+    </plurals>
+    <plurals name="stranded_moved">
+        <item quantity="one">Moved 1 place to the widget</item>
+        <item quantity="other">Moved %1$d places to the widget</item>
+    </plurals>
+    <string name="stranded_save_first">Save or discard your changes first.</string>
+    <string name="draft_restored">Your unsaved changes are back. Save or discard them.</string>
+    <string name="main_add_widget">Add the widget in Niagara</string>
+    <string name="main_add_widget_steps">1. Long-press the clock on your home screen.\n2. Tap \"Add Custom Widget\".\n3. Scroll to \"Navigation Shortcuts\", tap it, then tap the widget preview.</string>
+    <string name="main_other_launchers">Other launchers: long-press an empty spot on the home screen → Widgets → Navigation Shortcuts.</string>
+    <string name="main_add_places">Add destinations</string>
+    <string name="main_add_places_steps">Open a place in Google Maps, tap Share and pick \"Add to widget\". Or tap your widget above and add one by address.</string>
 
     <!-- Config screen (PLAN 4.1) -->
     <string name="config_title">Widget settings</string>
-    <string name="config_share_tip">Tip: share any place from Google Maps to this app (Share → Add to navigation widget).</string>
+    <string name="config_share_tip">Tip: share any place from Google Maps to this app (Share → Add to widget).</string>
+    <string name="unsaved_title">Save changes?</string>
+    <string name="unsaved_message">Your changes to this widget aren\'t saved yet.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
+    <string name="deleted_entry">Deleted %1$s</string>
+    <string name="undo">Undo</string>
+    <string name="label_shown_as">On the widget: \"%1$s\". A shorter label fits.</string>
     <string name="config_grid">Grid</string>
     <string name="config_rows">Rows</string>
     <string name="config_cols">Columns</string>
@@ -43,7 +74,7 @@
     <string name="niagara_missing_style">Niagara isn\'t installed: destinations show built-in icons.</string>
     <string name="config_destinations">Destinations</string>
     <string name="config_no_destinations">No destinations yet. Add one manually or share a place from Google Maps.</string>
-    <string name="add_manually">Add manually</string>
+    <string name="add_manually_plus">+ Add manually</string>
     <string name="add_destination">Add destination</string>
     <string name="edit_destination">Edit destination</string>
     <string name="save">Save</string>
@@ -61,7 +92,8 @@
     <string name="niagara_missing_icons">Niagara isn\'t installed: only built-in icons are available.</string>
 
     <!-- Share sheet -->
-    <string name="share_target_label">Add to navigation widget</string>
+    <!-- Maps' share grid shows about 2 × 10 characters (decisions 5b E20): keep it short. -->
+    <string name="share_target_label">Add to widget</string>
     <string name="share_title">Add to navigation widget</string>
     <string name="field_label">Label</string>
     <string name="field_destination">Destination</string>
@@ -85,16 +117,16 @@
     <string name="back">Back</string>
     <string name="create_new_widget">+ Create new widget</string>
     <string name="create_new_hint">A new navigation widget with this place will be added to your home screen.</string>
-    <string name="added_to_new_widget">Added to a new widget</string>
+    <string name="added_to_new_widget">Added %1$s to a new widget</string>
     <string name="pin_requested">Confirm adding the widget. If you cancel, the place stays saved and appears in the next navigation widget you add.</string>
     <string name="saved_pending">Saved. Add the \"Navigation Shortcuts\" widget to your home screen (long-press the clock → Add Custom Widget in Niagara); this place will be in it.</string>
     <string name="nothing_shared">Nothing to add: share a place from Google Maps.</string>
-    <string name="added_to">Added to %1$s</string>
+    <string name="added_to_widget">Added %1$s to the widget</string>
     <string name="chip_newest">newest</string>
     <string name="chip_older">older</string>
     <string name="chip_not_seen">not seen on home screen</string>
     <string name="not_seen_hint">This widget hasn\'t appeared on your home screen since %1$s. If you can\'t find it there, choose \"+ Create new widget\".</string>
-    <string name="grid_tall_tip">With 3 or more rows, make the widget taller: long-press it in Niagara → Move and resize.</string>
+    <string name="grid_tall_tip">More rows need a taller widget: long-press it in Niagara → Move and resize.</string>
 
     <!-- Link resolution failures (decisions 3.5) -->
     <string name="failed_no_internet">No internet connection — type the address or try again.</string>

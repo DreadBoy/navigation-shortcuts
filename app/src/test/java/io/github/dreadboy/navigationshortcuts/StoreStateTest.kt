@@ -121,6 +121,174 @@ class StoreStateTest {
         assertEquals(setOf(1, 3), s.delete(listOf(2)).configs.keys)
     }
 
+    // ---------------------------------------------------------------- E5: a removed widget's destinations are kept
+
+    @Test
+    fun deletedWidgetsDestinationsMoveToPending_andTheNextWidgetGetsThemBack() {
+        val a = entry("a")
+        val b = entry("b")
+        val s = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)))).delete(listOf(4))
+        assertTrue(s.configs.isEmpty())
+        assertEquals(listOf(a, b), s.pending)
+        val next = s.ensureConfig(9)
+        assertEquals(listOf(a, b), next.configs[9]!!.entries)
+        assertTrue(next.pending.isEmpty())
+    }
+
+    /** Round 2: the removed widget's own places first, in their order, then the older pending ones; no duplicates. */
+    @Test
+    fun deletePutsTheWidgetsPlacesBeforeOlderPending_withoutDuplicates() {
+        val (p, q, a) = listOf(entry("p"), entry("q"), entry("a"))
+        val s = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(p, a))), pending = listOf(q, p)).delete(listOf(4))
+        assertEquals("widget order first, p not twice", listOf(p, a, q), s.pending)
+    }
+
+    @Test
+    fun deleteSkipsEntriesThatAreOnAnotherWidget() {
+        val a = entry("a")
+        val b = entry("b")
+        val s = StoreState(configs = mapOf(2 to WidgetConfig(1, 4, listOf(a)), 4 to WidgetConfig(1, 4, listOf(a, b)))).delete(listOf(4))
+        assertEquals(listOf(b), s.pending)
+        assertEquals(listOf(a), s.configs[2]!!.entries)
+    }
+
+    @Test
+    fun deleteOfUnknownOrEmptyWidgetChangesNothingElse() {
+        val s = StoreState(configs = mapOf(2 to WidgetConfig(1, 4, listOf(entry("a")))), pending = listOf(entry("p")))
+        assertSame(s, s.delete(listOf(7)))
+        val emptyRemoved = StoreState(configs = s.configs + (3 to WidgetConfig()), pending = s.pending).delete(listOf(3))
+        assertEquals(s, emptyRemoved)
+    }
+
+    @Test
+    fun deleteOfSeveralWidgetsKeepsAll_inWidgetOrder() {
+        val (a, b, c) = listOf(entry("a"), entry("b"), entry("c"))
+        val s = StoreState(configs = mapOf(5 to WidgetConfig(1, 4, listOf(c)), 3 to WidgetConfig(1, 4, listOf(a, b)))).delete(listOf(5, 3))
+        assertEquals(listOf(a, b, c), s.pending)
+    }
+
+    @Test
+    fun pruneKeepsDestinationsOfVanishedWidgets() {
+        val a = entry("a")
+        val s = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a)), 6 to WidgetConfig(1, 4, listOf(entry("x"))))).prune(listOf(6))
+        assertEquals(setOf(6), s.configs.keys)
+        assertEquals(listOf(a), s.pending)
+    }
+
+    @Test
+    fun fullWidgetRemoved_36Entries_comeBackInTheNextWidget_olderPendingIsTheOverflow() {
+        val pendingBefore = (1..3).map { entry("p$it") }
+        val full = (1..36).map { entry("w$it") }
+        val s = StoreState(configs = mapOf(4 to WidgetConfig(6, 6, full)), pending = pendingBefore).delete(listOf(4))
+        assertEquals(39, s.pending.size)
+        val next = s.ensureConfig(5)
+        assertEquals("the widget's own places, in their order", full, next.configs[5]!!.entries)
+        assertEquals(6 to 6, next.configs[5]!!.rows to next.configs[5]!!.cols)
+        assertEquals("overflow = the older pending places", pendingBefore, next.pending)
+        // Nothing lost, nothing twice.
+        val all = next.configs.values.flatMap { it.entries } + next.pending
+        assertEquals(39, all.map { it.id }.toSet().size)
+        assertEquals(39, all.size)
+    }
+
+    /** "Replace": the old widget's onDeleted before the new widget's first update. */
+    @Test
+    fun replace_onDeletedFirst_thenNewWidgetsFirstUpdate() {
+        val (a, b) = listOf(entry("a"), entry("b"))
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b))))
+        val s = start.delete(listOf(4)).ensureConfig(5)
+        assertEquals(mapOf(5 to WidgetConfig(1, 4, listOf(a, b))), s.configs)
+        assertTrue(s.pending.isEmpty())
+    }
+
+    /** "Replace": the new widget's first update (empty config) before the old widget's onDeleted; same end state. */
+    @Test
+    fun replace_newWidgetsFirstUpdateFirst_thenOnDeleted() {
+        val (a, b) = listOf(entry("a"), entry("b"))
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b))))
+        val newFirst = start.ensureConfig(5).delete(listOf(4))
+        assertEquals(start.delete(listOf(4)).ensureConfig(5), newFirst)
+        assertEquals(listOf(a, b), newFirst.configs[5]!!.entries)
+        assertTrue(newFirst.pending.isEmpty())
+    }
+
+    @Test
+    fun replace_bothOrdersAgree_alsoWithPendingAndOverflow() {
+        val pendingBefore = listOf(entry("p"))
+        val old = (1..36).map { entry("w$it") }
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(6, 6, old)), pending = pendingBefore)
+        val deletedFirst = start.delete(listOf(4)).ensureConfig(5)
+        // New first: its first update takes "p"; it is no longer empty, so the old entries stay pending for the next one.
+        val newFirst = start.ensureConfig(5).delete(listOf(4))
+        for (s in listOf(deletedFirst, newFirst)) {
+            val all = s.configs.values.flatMap { it.entries } + s.pending
+            assertEquals("nothing lost or doubled", 37, all.map { it.id }.toSet().size)
+            assertEquals(37, all.size)
+        }
+        assertEquals(36, deletedFirst.configs[5]!!.entries.size)
+        assertEquals(listOf(pendingBefore.single()), newFirst.configs[5]!!.entries)
+        assertEquals(old, newFirst.pending)
+    }
+
+    @Test
+    fun olderEmptyWidget_orGhostWithLowerId_doesNotTakeOverARemovedWidgetsDestinations() {
+        val a = entry("a")
+        // 3 is an older (lower ID) empty widget, e.g. a ghost left by an earlier Replace (decisions 3.9).
+        val s = StoreState(configs = mapOf(3 to WidgetConfig(), 4 to WidgetConfig(1, 4, listOf(a)))).delete(listOf(4))
+        assertTrue(s.configs[3]!!.entries.isEmpty())
+        assertEquals(listOf(a), s.pending)
+    }
+
+    @Test
+    fun removeAndPlaceAgain_repeatedly_keepsTheSameEntriesOnce() {
+        var s = StoreState(configs = mapOf(1 to WidgetConfig(1, 4, listOf(entry("a"), entry("b")))))
+        for (id in 2..10) s = s.delete(listOf(id - 1)).ensureConfig(id)
+        assertEquals(listOf("a", "b"), s.configs[10]!!.entries.map { it.label })
+        assertTrue(s.pending.isEmpty())
+    }
+
+    // ---------------------------------------------------------------- E5 round 2: places stranded on a ghost
+
+    @Test
+    fun movePlaces_fromGhostToVisibleWidget_inOrder_ghostKeepsNone() {
+        val (a, b, c) = listOf(entry("a"), entry("b"), entry("c"))
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)), 5 to WidgetConfig(1, 4, listOf(c))))
+        val s = start.movePlaces(from = 4, to = 5)!!
+        assertEquals(listOf(c, a, b), s.configs[5]!!.entries)
+        assertEquals("ghost keeps its config, but no places", WidgetConfig(1, 4, emptyList()), s.configs[4])
+        assertTrue(s.pending.isEmpty())
+        assertNull("nothing left to move: no second copy", s.movePlaces(4, 5))
+    }
+
+    @Test
+    fun movePlaces_growsTheGrid_andOverflowBeyond36GoesToPending_noDuplicates() {
+        val ghost = (1..10).map { entry("g$it") }
+        val visible = (1..30).map { entry("v$it") }
+        val p = entry("p")
+        val start = StoreState(
+            configs = mapOf(4 to WidgetConfig(2, 5, ghost), 5 to WidgetConfig(5, 6, visible)),
+            pending = listOf(p),
+        )
+        val s = start.movePlaces(4, 5)!!
+        assertEquals(6 to 6, s.configs[5]!!.rows to s.configs[5]!!.cols)
+        assertEquals(visible + ghost.take(6), s.configs[5]!!.entries)
+        assertEquals(listOf(p) + ghost.drop(6), s.pending)
+        val all = s.configs.values.flatMap { it.entries } + s.pending
+        assertEquals(41, all.size)
+        assertEquals(41, all.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun movePlaces_skipsEntriesAlreadyOnTheTarget_andToAWidgetWithoutConfig() {
+        val (a, b) = listOf(entry("a"), entry("b"))
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)), 5 to WidgetConfig(1, 4, listOf(a))))
+        assertEquals(listOf(a, b), start.movePlaces(4, 5)!!.configs[5]!!.entries)
+        val fresh = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)))).movePlaces(4, 9)!!
+        assertEquals(listOf(a, b), fresh.configs[9]!!.entries)
+        assertNull(start.movePlaces(4, 4))
+        assertNull(start.movePlaces(7, 5))
+    }
+
     @Test
     fun addPendingIgnoresDuplicates() {
         val e = entry("a")

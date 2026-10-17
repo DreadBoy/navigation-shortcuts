@@ -36,6 +36,7 @@ class ConfigE2eTest {
         niagara.assertIsDefaultHome()
         maps.forceStop()
         niagara.removeCustomWidgetIfPresent()
+        AppStore(d).clearPending() // a removed widget's places stay pending (decisions 5b E5): start clean
         val stray = niagara.boundWidgetIdsOfOurApp()
         if (stray.isNotEmpty()) {
             throw AssertionError("Widget IDs $stray still bound to our provider (ghosts, decisions 3.9): run e2e/run-e2e.sh")
@@ -178,6 +179,103 @@ class ConfigE2eTest {
         niagara.cell(TIVOLI.first).click()
         maps.assertNavigationInForeground()
         maps.assertNavigationIntentFor(TIVOLI.second)
+    }
+
+    /**
+     * Decisions 5b E1 + E18: Back with unsaved changes asks "Save changes?". Discard drops the edit (widget unchanged);
+     * Keep editing stays; Save stores it. A delete offers Undo, which brings the destination back in place.
+     */
+    @Test
+    fun backWithUnsavedChanges_asksToSave_discardOrSave_andDeleteHasUndo() {
+        niagara.addOurWidget()
+        niagara.addCell().click()
+        config.awaitShown()
+        config.addManually(ZOO.first, ZOO.second)
+        config.backAndAnswer("Discard")
+        niagara.assertEmptyWidget()
+
+        niagara.addCell().click()
+        config.awaitShown()
+        config.addManually(ZOO.first, ZOO.second)
+        config.addManually(BTC.first, BTC.second)
+        config.backAndAnswer("Keep editing")
+        assertTrue("still in the config screen after Keep editing", config.isShown())
+        config.delete(ZOO.first)
+        config.undo(ZOO.first)
+        assertEquals("Undo restores the destination in its place", listOf(ZOO.first, BTC.first), config.entries())
+        config.backAndAnswer("Save")
+        niagara.assertWidgetCells(listOf(ZOO.first, BTC.first), 2)
+
+        // No changes: Back just closes, no dialog.
+        niagara.emptyCells()[0].click()
+        config.awaitShown()
+        d.ui.pressBack()
+        d.waitGone(By.res(E2e.APP, "config_title"), E2e.LONG, "config screen after Back without changes")
+        assertFalse("no 'Save changes?' without changes", d.has(By.text("Save changes?")))
+        niagara.assertWidgetCells(listOf(ZOO.first, BTC.first), 2)
+    }
+
+    /**
+     * Decisions 5b E5: removing the widget in Niagara keeps its destinations (pending list); the next widget placed shows
+     * them again, and a cell still navigates.
+     */
+    @Test
+    fun removeWidget_thenPlaceAgain_destinationsComeBack() {
+        niagara.addOurWidget()
+        niagara.addCell().click()
+        config.awaitShown()
+        config.addManually(TIVOLI.first, TIVOLI.second)
+        config.addManually(ZOO.first, ZOO.second)
+        config.save()
+        niagara.assertWidgetCells(listOf(TIVOLI.first, ZOO.first), 2)
+
+        niagara.removeCustomWidgetIfPresent()
+        niagara.addOurWidget()
+        niagara.assertWidgetCells(listOf(TIVOLI.first, ZOO.first), 2)
+        maps.forceStop()
+        niagara.cell(ZOO.first).click()
+        maps.assertNavigationInForeground()
+        maps.assertNavigationIntentFor(ZOO.second)
+    }
+
+    /**
+     * Decisions 5b round 3: app screen → widget → an unsaved destination → Home → reopen the app from Niagara (a launcher
+     * relaunch resets the task): the config screen is back with the unsaved destination; Save puts it on the widget.
+     */
+    @Test
+    fun appScreenConfig_unsavedEdit_survivesHomeAndLauncherRelaunch() {
+        niagara.addOurWidget()
+        niagara.openOurApp()
+        d.waitFor(By.pkg(E2e.APP).text("Empty widget"), E2e.LONG, "our widget in the app's widget list").click()
+        config.awaitShown()
+        config.addManually(TIVOLI.first, TIVOLI.second)
+
+        niagara.goHome()
+        niagara.openOurApp()
+        config.awaitShown()
+        assertEquals("unsaved destination kept", listOf(TIVOLI.first), config.entries())
+        config.save()
+        niagara.goHome()
+        niagara.assertWidgetCells(listOf(TIVOLI.first), 3)
+    }
+
+    /**
+     * Decisions 5b round 3: the widget's "+ Add destinations" cell → an unsaved destination → Home → the cell again (a
+     * fresh screen) shows the unsaved destination (draft); Save puts it on the widget.
+     */
+    @Test
+    fun widgetCellConfig_unsavedEdit_survivesHomeAndReopeningFromTheWidget() {
+        niagara.addOurWidget()
+        niagara.addCell().click()
+        config.awaitShown()
+        config.addManually(ZOO.first, ZOO.second)
+
+        niagara.goHome()
+        niagara.addCell().click()
+        config.awaitShown()
+        assertEquals("unsaved destination kept as a draft", listOf(ZOO.first), config.entries())
+        config.save()
+        niagara.assertWidgetCells(listOf(ZOO.first), 3)
     }
 
     /** Screen area of the cell's icon view. */

@@ -200,6 +200,15 @@ class IconsTest {
         }
     }
 
+    /** Decisions 5b: hospital guesses the stethoscope; entries stored with the old lotus keep it and its fallback. */
+    @Test
+    fun hospitalIsTheStethoscope_oldLotusEntriesStillRender() {
+        assertEquals(IconRef.niagara("cat_doctor_game"), IconGuess.guess("Splošna bolnišnica Celje"))
+        assertEquals(listOf("cat_health", "cat_doctor_game"), NiagaraGlyphs.glyphsFor(IconRef.niagara("cat_health")))
+        assertEquals("hospital", NiagaraGlyphs.fallbackFor("cat_health"))
+        assertEquals(BuiltInIcons.drawable("hospital"), IconResolver.drawableRes(IconRef.niagara("cat_health")))
+    }
+
     @Test
     fun builtInRefsAreDrawnAsTheirNiagaraGlyph() {
         for ((name, _) in BuiltInIcons.all) {
