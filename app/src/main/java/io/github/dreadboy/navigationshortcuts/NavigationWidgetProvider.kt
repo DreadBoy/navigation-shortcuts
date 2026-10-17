@@ -97,9 +97,14 @@ object WidgetUpdater {
     suspend fun update(context: Context, appWidgetIds: List<Int>? = null) {
         val store = WidgetStore(context)
         val bound = store.boundWidgetIds()
-        val ids = (appWidgetIds ?: bound).filter { it in bound }
-        // Niagara's "Replace widget" may not call onDeleted (decisions 1.4): prune against the bound IDs.
         val before = store.read()
+        val requested = (appWidgetIds ?: bound).filter { it in bound }
+        // A newly placed widget (no config yet) may have replaced one of ours (Niagara's "Replace widget" keeps the old
+        // ID bound, decisions 3.9): render every bound widget too, so the old one gets a render it never displays while
+        // the new one does — the probe can then flag it and offer to move its places (decisions 5b E5 round 2).
+        // The others first: the new widget's render must be displayed after the old one's was pushed (witness rule).
+        val ids = if (requested.any { it !in before.configs }) bound.filterNot { it in requested } + requested else requested
+        // Niagara's "Replace widget" may not call onDeleted (decisions 1.4): prune against the bound IDs.
         val state = store.update { it.prune(bound).let { s -> ids.fold(s) { acc, id -> acc.ensureConfig(id) } } }
             ?: store.read()
         RenderProbe.forget(context, before.configs.keys - bound.toSet())

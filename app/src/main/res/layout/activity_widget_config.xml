@@ -228,6 +228,13 @@
                 android:text="@string/config_no_destinations"
                 android:textColor="?android:attr/textColorSecondary" />
 
+            <!-- Places left on a widget Niagara replaced (decisions 5b E5 round 2). -->
+            <Button
+                android:id="@+id/stranded_bring_back"
+                style="@style/ConfigTextButton"
+                android:layout_marginStart="-12dp"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/entry_list"
                 android:layout_width="match_parent"

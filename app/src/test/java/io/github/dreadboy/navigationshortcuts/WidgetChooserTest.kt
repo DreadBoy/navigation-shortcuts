@@ -1,6 +1,7 @@
 package io.github.dreadboy.navigationshortcuts
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** Chooser order/labels and ghost flagging (decisions 3.9), with probe statuses as measured on Niagara. */
@@ -59,5 +60,27 @@ class WidgetChooserTest {
         assertEquals("Home · Gym", labels[2])
         val two = WidgetChooser.labels(listOf(1, 2), mapOf(), emptySet(), "Empty widget", "newest", "older", "x")
         assertEquals(mapOf(2 to "Empty widget (newest)", 1 to "Empty widget (older)"), two)
+    }
+
+    private fun e(id: String) = Entry(id, "$id dest", IconRef.niagara("act_location"), id = id)
+
+    /** Decisions 5b E5 round 2: after "Replace", the ghost's places can move to the visible widget. */
+    @Test
+    fun strandedPlacesOnGhosts_targetIsTheNewestVisibleWidget() {
+        val configs = mapOf(
+            3 to WidgetConfig(1, 4, listOf(e("a"), e("b"))), // ghost with places
+            4 to WidgetConfig(1, 4, emptyList()), // ghost without places
+            6 to WidgetConfig(1, 4, listOf(e("b"))), // visible, already has b
+            5 to WidgetConfig(1, 4, emptyList()), // older visible
+        )
+        val s = WidgetChooser.stranded(listOf(3, 4, 5, 6), notSeen = setOf(3, 4), configs = configs)!!
+        assertEquals(listOf(3), s.ghosts)
+        assertEquals(6, s.target)
+        assertEquals("b is on the target already", 1, s.count)
+        // Nothing flagged, no visible widget, or nothing left to move: no offer.
+        assertNull(WidgetChooser.stranded(listOf(3, 6), emptySet(), configs))
+        assertNull(WidgetChooser.stranded(listOf(3, 4), setOf(3, 4), configs))
+        assertNull(WidgetChooser.stranded(listOf(4, 6), setOf(4), configs))
+        assertNull(WidgetChooser.stranded(listOf(3, 6), setOf(3), configs + (3 to WidgetConfig(1, 4, listOf(e("b"))))))
     }
 }

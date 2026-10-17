@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#1E6B52</color>
+    <!-- Widget cards in the app screen (decisions 5b E15). -->
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="card_outline">#FFC6C6D0</color>
     <!-- Undo bar (decisions 5b E18): inverse surface, like a snackbar. -->
     <color name="undo_bar_background">#FF323438</color>
     <color name="undo_bar_text">#FFF1F1F4</color>

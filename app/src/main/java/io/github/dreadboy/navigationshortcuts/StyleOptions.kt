@@ -154,7 +154,11 @@ object StyleOptions {
         AnyconStyle.Stellar -> true
     }
 
-    private val SAMPLE_GLYPHS = listOf("cat_home", "cat_office", "cat_fitness", "cat_shopping")
+    /** Outline with the dark line colour is meant for light wallpapers: our screens show it on a light strip (E26). */
+    fun forLightWallpaper(style: AnyconStyle): Boolean =
+        style is AnyconStyle.Outline && style.textMode == AnyconStyle.Outline.TextMode.DARK_TEXT
+
+    private val SAMPLE_GLYPHS =listOf("cat_home", "cat_office", "cat_fitness", "cat_shopping")
 
     /**
      * Style preview icons (decisions 5b E17): the real destinations first (up to [count]); samples only fill the rest,

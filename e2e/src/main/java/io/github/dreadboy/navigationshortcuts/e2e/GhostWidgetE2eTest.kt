@@ -6,7 +6,9 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.FixMethodOrder
 import org.junit.Test
+import org.junit.runners.MethodSorters
 import org.junit.runner.RunWith
 
 /**
@@ -17,6 +19,7 @@ import org.junit.runner.RunWith
  * WidgetE2eTest, and reinstalls the app before every run.
  */
 @RunWith(AndroidJUnit4::class)
+@FixMethodOrder(MethodSorters.NAME_ASCENDING) // the stranded-places test runs after the chooser test (labels)
 class GhostWidgetE2eTest {
 
     private val d = E2eDevice()
@@ -88,5 +91,60 @@ class GhostWidgetE2eTest {
         sheet.waitGone()
         niagara.replaceCustomWidgetWithNewOurs()
         niagara.assertWidgetCells(listOf(Places.STOZICE.label), E2e.DEFAULT_CELLS - 1)
+    }
+
+    /**
+     * Decisions 5b E5 round 2: "Replace widget" strands the old widget's places on a ghost (no onDeleted). The app screen
+     * flags it and moves them to the widget on the home screen, where they show and navigate. Other ghosts this class
+     * left behind may hold places too; they move along, so only "contains" is asserted.
+     */
+    @Test
+    fun strandedPlaces_afterReplaceWidget_appScreenMovesThemToTheVisibleWidget() {
+        val config = ConfigScreen(d)
+        niagara.addOurWidget()
+        niagara.addCell().click()
+        config.awaitShown()
+        config.addManually(ZOO.first, ZOO.second)
+        config.addManually(TIVOLI.first, TIVOLI.second)
+        config.save()
+        niagara.assertWidgetCells(listOf(ZOO.first, TIVOLI.first), E2e.DEFAULT_CELLS - 2)
+
+        niagara.replaceCustomWidgetWithNewOurs()
+        niagara.assertEmptyWidget()
+
+        // The app screen offers the move once the home screen showed the new widget without the old one.
+        val move = By.res(E2e.APP, "stranded_move")
+        val deadline = System.currentTimeMillis() + E2e.LONG
+        while (true) {
+            niagara.openOurApp()
+            if (d.ui.wait(androidx.test.uiautomator.Until.hasObject(move), E2e.SHORT)) break
+            if (System.currentTimeMillis() > deadline) throw AssertionError("no 'Move … places' offer in the app screen")
+            niagara.goHome()
+        }
+        val text = d.waitFor(By.res(E2e.APP, "stranded_text"), what = "stranded places text").text.orEmpty()
+        assertTrue("names the stranded places: '$text'", ZOO.first in text && TIVOLI.first in text)
+        d.waitFor(move, what = "'Move … places' button").click()
+        d.waitGone(move, E2e.LONG, "'Move … places' offer after moving")
+
+        niagara.goHome()
+        val deadline2 = System.currentTimeMillis() + E2e.LONG
+        while (!niagara.cellLabels().containsAll(listOf(ZOO.first, TIVOLI.first))) {
+            if (System.currentTimeMillis() > deadline2) {
+                throw AssertionError("moved places not on the visible widget: ${niagara.cellLabels()}")
+            }
+            Thread.sleep(500)
+            niagara.goHome()
+        }
+        val labels = niagara.cellLabels()
+        assertEquals("each place once: $labels", labels.size, labels.toSet().size)
+        maps.forceStop()
+        niagara.cell(ZOO.first).click()
+        maps.assertNavigationInForeground()
+        maps.assertNavigationIntentFor(ZOO.second)
+    }
+
+    private companion object {
+        val ZOO = "Zoo" to "Ljubljana Zoo"
+        val TIVOLI = "Tivoli" to "Tivoli Park, Ljubljana"
     }
 }

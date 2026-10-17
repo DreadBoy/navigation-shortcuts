@@ -19,6 +19,24 @@ object WidgetChooser {
         !s.latestShown && statuses.any { (other, o) -> other != id && o.shownAt > s.unconfirmedSince }
     }.keys
 
+    /** Places left on widgets that aren't on the home screen, and the visible widget they can move to (decisions 5b E5). */
+    data class Stranded(val ghosts: List<Int>, val target: Int, val count: Int)
+
+    /**
+     * After Niagara's "Replace widget" the old ID stays bound with its places but is never shown (3.7/3.9). [notSeen]
+     * widgets with places are "stranded"; the target is the newest widget that is not flagged (the one on the home
+     * screen). Null when nothing is stranded or no visible widget exists. [count] = places to move (distinct ids that
+     * are not on the target already).
+     */
+    fun stranded(ids: Collection<Int>, notSeen: Set<Int>, configs: Map<Int, WidgetConfig>): Stranded? {
+        val target = order(ids, notSeen).firstOrNull { it !in notSeen } ?: return null
+        val ghosts = order(ids, notSeen).filter { it in notSeen && configs[it]?.entries.orEmpty().isNotEmpty() }
+        if (ghosts.isEmpty()) return null
+        val onTarget = configs[target]?.entries.orEmpty().map { it.id }.toSet()
+        val count = ghosts.flatMap { configs.getValue(it).entries }.map { it.id }.filterNot { it in onTarget }.toSet().size
+        return if (count == 0) null else Stranded(ghosts, target, count)
+    }
+
     /** Chooser order: widgets not flagged first, then newest (highest ID = most recently placed) first. */
     fun order(ids: Collection<Int>, notSeen: Set<Int>): List<Int> =
         ids.sortedWith(compareBy<Int> { if (it in notSeen) 1 else 0 }.thenByDescending { it })

@@ -135,12 +135,12 @@ class StoreStateTest {
         assertTrue(next.pending.isEmpty())
     }
 
+    /** Round 2: the removed widget's own places first, in their order, then the older pending ones; no duplicates. */
     @Test
-    fun deleteAppendsAfterExistingPending_withoutDuplicates() {
-        val p = entry("p")
-        val a = entry("a")
-        val s = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(p, a))), pending = listOf(p)).delete(listOf(4))
-        assertEquals("p already pending is not added twice", listOf(p, a), s.pending)
+    fun deletePutsTheWidgetsPlacesBeforeOlderPending_withoutDuplicates() {
+        val (p, q, a) = listOf(entry("p"), entry("q"), entry("a"))
+        val s = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(p, a))), pending = listOf(q, p)).delete(listOf(4))
+        assertEquals("widget order first, p not twice", listOf(p, a, q), s.pending)
     }
 
     @Test
@@ -176,15 +176,15 @@ class StoreStateTest {
     }
 
     @Test
-    fun fullWidgetRemoved_36Entries_comeBackInTheNextWidget_overflowStaysPending() {
+    fun fullWidgetRemoved_36Entries_comeBackInTheNextWidget_olderPendingIsTheOverflow() {
         val pendingBefore = (1..3).map { entry("p$it") }
         val full = (1..36).map { entry("w$it") }
         val s = StoreState(configs = mapOf(4 to WidgetConfig(6, 6, full)), pending = pendingBefore).delete(listOf(4))
         assertEquals(39, s.pending.size)
         val next = s.ensureConfig(5)
-        assertEquals(pendingBefore + full.take(33), next.configs[5]!!.entries)
+        assertEquals("the widget's own places, in their order", full, next.configs[5]!!.entries)
         assertEquals(6 to 6, next.configs[5]!!.rows to next.configs[5]!!.cols)
-        assertEquals(full.drop(33), next.pending)
+        assertEquals("overflow = the older pending places", pendingBefore, next.pending)
         // Nothing lost, nothing twice.
         val all = next.configs.values.flatMap { it.entries } + next.pending
         assertEquals(39, all.map { it.id }.toSet().size)
@@ -245,6 +245,48 @@ class StoreStateTest {
         for (id in 2..10) s = s.delete(listOf(id - 1)).ensureConfig(id)
         assertEquals(listOf("a", "b"), s.configs[10]!!.entries.map { it.label })
         assertTrue(s.pending.isEmpty())
+    }
+
+    // ---------------------------------------------------------------- E5 round 2: places stranded on a ghost
+
+    @Test
+    fun movePlaces_fromGhostToVisibleWidget_inOrder_ghostKeepsNone() {
+        val (a, b, c) = listOf(entry("a"), entry("b"), entry("c"))
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)), 5 to WidgetConfig(1, 4, listOf(c))))
+        val s = start.movePlaces(from = 4, to = 5)!!
+        assertEquals(listOf(c, a, b), s.configs[5]!!.entries)
+        assertEquals("ghost keeps its config, but no places", WidgetConfig(1, 4, emptyList()), s.configs[4])
+        assertTrue(s.pending.isEmpty())
+        assertNull("nothing left to move: no second copy", s.movePlaces(4, 5))
+    }
+
+    @Test
+    fun movePlaces_growsTheGrid_andOverflowBeyond36GoesToPending_noDuplicates() {
+        val ghost = (1..10).map { entry("g$it") }
+        val visible = (1..30).map { entry("v$it") }
+        val p = entry("p")
+        val start = StoreState(
+            configs = mapOf(4 to WidgetConfig(2, 5, ghost), 5 to WidgetConfig(5, 6, visible)),
+            pending = listOf(p),
+        )
+        val s = start.movePlaces(4, 5)!!
+        assertEquals(6 to 6, s.configs[5]!!.rows to s.configs[5]!!.cols)
+        assertEquals(visible + ghost.take(6), s.configs[5]!!.entries)
+        assertEquals(listOf(p) + ghost.drop(6), s.pending)
+        val all = s.configs.values.flatMap { it.entries } + s.pending
+        assertEquals(41, all.size)
+        assertEquals(41, all.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun movePlaces_skipsEntriesAlreadyOnTheTarget_andToAWidgetWithoutConfig() {
+        val (a, b) = listOf(entry("a"), entry("b"))
+        val start = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)), 5 to WidgetConfig(1, 4, listOf(a))))
+        assertEquals(listOf(a, b), start.movePlaces(4, 5)!!.configs[5]!!.entries)
+        val fresh = StoreState(configs = mapOf(4 to WidgetConfig(1, 4, listOf(a, b)))).movePlaces(4, 9)!!
+        assertEquals(listOf(a, b), fresh.configs[9]!!.entries)
+        assertNull(start.movePlaces(4, 4))
+        assertNull(start.movePlaces(7, 5))
     }
 
     @Test

@@ -69,7 +69,11 @@ class AddDestinationActivity : ComponentActivity() {
     private var icon: IconRef = IconGuess.refFor(BuiltInIcons.PIN)
 
     /** One id per share: seeds the icon's look (same as on the widget) and keeps pending/pin idempotent (decisions 3.3). */
-    private val entryId = java.util.UUID.randomUUID().toString()
+    private var entryId = java.util.UUID.randomUUID().toString()
+
+    /** Step 2 selection to re-apply after a recreation, once the widget list is loaded. */
+    private var restoredSelection: Int? = null
+    private var restoredCreateNew = false
     private var iconChosenByUser = false
     private var resolved = false
     private var state = StoreState()
@@ -172,10 +176,65 @@ class AddDestinationActivity : ComponentActivity() {
             finish()
             return
         }
-        setIcon(icon)
-        showStep(Step.DETAILS)
+        val saved = savedInstanceState?.getString(KEY_STATE)?.let { SheetState.fromJson(it) }
+        if (saved != null && saved.resolved) {
+            // Recreated (dark-mode switch, process death in the background): keep the edits, don't resolve again.
+            restore(saved)
+        } else {
+            setIcon(icon)
+            showStep(Step.DETAILS)
+            resolve(text)
+        }
         loadWidgets()
-        resolve(text)
+    }
+
+    /** Edits survive a recreation (decisions 5b E1/E18 round 2): see [SheetState]. */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val state = SheetState(
+            entryId = entryId,
+            label = labelInput.text.toString(),
+            destination = destinationInput.text.toString(),
+            destinationEditable = destinationInput.isEnabled,
+            status = statusText.text.toString(),
+            icon = icon,
+            iconChosenByUser = iconChosenByUser,
+            resolved = resolved,
+            resolvedLabel = resolvedLabel,
+            resolvedDestination = resolvedDestination,
+            widgetStep = step == Step.WIDGET,
+            selectedWidget = selectedWidget,
+            createNewSelected = widgetsLoaded && selectedWidget == null,
+            doneMessage = if (mode == Mode.DONE) messageText.text.toString() else null,
+            pinRequestedFor = pinRequestedFor,
+            pinBaseline = pinBaseline.toList(),
+            pausedSincePinRequest = pausedSincePinRequest,
+        )
+        outState.putString(KEY_STATE, state.toJson())
+    }
+
+    private fun restore(s: SheetState) {
+        Log.i(TAG, "restoring the sheet after a recreation (step ${if (s.widgetStep) 2 else 1})")
+        entryId = s.entryId
+        iconChosenByUser = s.iconChosenByUser
+        resolvedLabel = s.resolvedLabel
+        resolvedDestination = s.resolvedDestination
+        labelInput.setText(s.label)
+        destinationInput.setText(s.destination)
+        destinationInput.isEnabled = s.destinationEditable
+        statusText.text = s.status
+        progress.visibility = View.GONE
+        resolved = true
+        setIcon(s.icon)
+        restoredSelection = s.selectedWidget
+        restoredCreateNew = s.createNewSelected
+        pinRequestedFor = s.pinRequestedFor
+        pinBaseline = s.pinBaseline.toSet()
+        pausedSincePinRequest = s.pausedSincePinRequest
+        showStep(if (s.widgetStep) Step.WIDGET else Step.DETAILS)
+        if (s.doneMessage != null) showDone(s.doneMessage)
+        keepOnOutsideTouchIfEdited()
+        updateButtons()
     }
 
     /** Step 1 (icon, label, destination: Cancel / Next) or step 2 (widget list: Back / Add). Edits are kept. */
@@ -337,7 +396,15 @@ class AddDestinationActivity : ComponentActivity() {
                 this.id = createNewChip
                 setText(R.string.create_new_widget)
             })
-            chips.check(if (firstChip != View.NO_ID) firstChip else createNewChip)
+            // After a recreation: the row the user had picked, if it still exists.
+            val restoredChip = when {
+                restoredCreateNew -> createNewChip
+                else -> chipWidgets.entries.firstOrNull { it.value == restoredSelection }?.key
+            }
+            val initialChip = restoredChip ?: if (firstChip != View.NO_ID) firstChip else createNewChip
+            restoredSelection = null
+            restoredCreateNew = false
+            chips.check(initialChip)
             chips.setOnCheckedChangeListener { _, checkedId ->
                 if (checkedId == View.NO_ID) return@setOnCheckedChangeListener
                 selectedWidget = chipWidgets[checkedId]
@@ -345,7 +412,7 @@ class AddDestinationActivity : ComponentActivity() {
                 setIcon(icon)
                 updateLabelFit()
             }
-            selectedWidget = widgetIds.firstOrNull()
+            selectedWidget = chipWidgets[initialChip]
             widgetsLoaded = true
             updateMode()
             setIcon(icon)
@@ -453,11 +520,9 @@ class AddDestinationActivity : ComponentActivity() {
                 updateMode()
                 return@launch
             }
-            val others = SheetTexts.others(after.configs[id]?.entries.orEmpty().filter { it.id != entry.id }.map { it.label })
-            Log.i(TAG, "added '${entry.label}' to widget $id (others: $others)")
-            val message = if (others == null) getString(R.string.added_to_widget, entry.label)
-            else getString(R.string.added_to_widget_with, entry.label, others)
-            Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+            Log.i(TAG, "added '${entry.label}' to widget $id: ${after.configs[id]?.summary()}")
+            // Short (decisions 5b E23 round 2): the list of the other places didn't fit a toast.
+            Toast.makeText(applicationContext, getString(R.string.added_to_widget, entry.label), Toast.LENGTH_LONG).show()
             finish()
         }
     }
@@ -567,6 +632,7 @@ class AddDestinationActivity : ComponentActivity() {
 
     private companion object {
         const val TAG = "NavShortShare"
+        const val KEY_STATE = "navshort.sheet"
 
         /**
          * From this many rows the default Niagara slot (315×80 dp) gets too short; suggest Move and resize. Same as the

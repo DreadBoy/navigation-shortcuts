@@ -18,6 +18,24 @@
     <string name="main_no_widgets">No navigation widget placed yet.</string>
     <string name="main_open_widget">Settings for widget: %1$s</string>
     <string name="main_widget_row_hint">Tap to edit destinations and look</string>
+    <string name="main_widget_row_not_seen">Not on your home screen (replaced in Niagara?)</string>
+    <plurals name="stranded_text">
+        <item quantity="one">A widget that is no longer on your home screen still holds 1 place: %2$s.</item>
+        <item quantity="other">A widget that is no longer on your home screen still holds %1$d places: %2$s.</item>
+    </plurals>
+    <plurals name="stranded_move">
+        <item quantity="one">Move 1 place to the widget on your home screen</item>
+        <item quantity="other">Move %1$d places to the widget on your home screen</item>
+    </plurals>
+    <plurals name="stranded_bring_back">
+        <item quantity="one">Bring back 1 place from a replaced widget</item>
+        <item quantity="other">Bring back %1$d places from a replaced widget</item>
+    </plurals>
+    <plurals name="stranded_moved">
+        <item quantity="one">Moved 1 place to the widget</item>
+        <item quantity="other">Moved %1$d places to the widget</item>
+    </plurals>
+    <string name="stranded_save_first">Save or discard your changes first.</string>
     <string name="main_add_widget">Add the widget in Niagara</string>
     <string name="main_add_widget_steps">1. Long-press the clock on your home screen.\n2. Tap \"Add Custom Widget\".\n3. Scroll to \"Navigation Shortcuts\", tap it, then tap the widget preview.</string>
     <string name="main_other_launchers">Other launchers: long-press an empty spot on the home screen → Widgets → Navigation Shortcuts.</string>
@@ -102,7 +120,6 @@
     <string name="pin_requested">Confirm adding the widget. If you cancel, the place stays saved and appears in the next navigation widget you add.</string>
     <string name="saved_pending">Saved. Add the \"Navigation Shortcuts\" widget to your home screen (long-press the clock → Add Custom Widget in Niagara); this place will be in it.</string>
     <string name="nothing_shared">Nothing to add: share a place from Google Maps.</string>
-    <string name="added_to_widget_with">Added %1$s to the widget with %2$s</string>
     <string name="added_to_widget">Added %1$s to the widget</string>
     <string name="chip_newest">newest</string>
     <string name="chip_older">older</string>

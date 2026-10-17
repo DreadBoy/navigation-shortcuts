@@ -85,6 +85,12 @@ class WidgetConfigActivity : ComponentActivity() {
     private var lastDeleted: Pair<Int, Entry>? = null
     private val hideUndo = Runnable { hideUndoBar() }
 
+    /** Saved screen state after a recreation, applied once the stored config is loaded. */
+    private var restored: ConfigScreenState? = null
+
+    /** State of the open Add/Edit dialog, for the saved instance state; null while none is open. */
+    private var openDialog: (() -> ConfigScreenState.Dialog)? = null
+
     /** Back asks before dropping unsaved edits (E1); enabled only while there are any. */
     private val confirmDiscard = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() = showUnsavedDialog()
@@ -142,7 +148,25 @@ class WidgetConfigActivity : ComponentActivity() {
         findViewById<Button>(R.id.config_cancel).setOnClickListener { finish() }
         saveButton.setOnClickListener { save() }
         saveButton.isEnabled = false
+        restored = savedInstanceState?.let { ConfigScreenState.from(it) }
         load()
+    }
+
+    /**
+     * Edits survive a recreation (dark-mode switch, process death while in the background): the loaded and the edited
+     * config, the pending Undo and an open Add/Edit dialog go into the saved state (decisions 5b E1 round 2).
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val loaded = original ?: restored?.original ?: return
+        val state = if (original == null) restored!! else ConfigScreenState(
+            original = loaded,
+            edited = edited(),
+            deletedIndex = lastDeleted?.first,
+            deleted = lastDeleted?.second,
+            dialog = openDialog?.invoke(),
+        )
+        state.into(outState)
     }
 
     override fun onDestroy() {
@@ -220,8 +244,13 @@ class WidgetConfigActivity : ComponentActivity() {
                 finish()
                 return@launch
             }
-            val (config, niagaraInstalled) = loaded
-            original = config
+            val (stored, niagaraInstalled) = loaded
+            // After a recreation: the edits as they were (Save still merges places that arrived meanwhile, 4.1).
+            val saved = restored
+            restored = null
+            original = saved?.original ?: stored
+            val config = saved?.edited ?: stored
+            if (saved != null) Log.i(TAG, "restored unsaved edits of widget $widgetId")
             rows = config.rows
             cols = config.cols
             entries.clear()
@@ -233,6 +262,59 @@ class WidgetConfigActivity : ComponentActivity() {
             refreshGrid()
             rebuildList()
             saveButton.isEnabled = true
+            if (saved?.deleted != null) {
+                lastDeleted = (saved.deletedIndex ?: 0) to saved.deleted
+                showUndoBar(saved.deleted)
+            }
+            saved?.dialog?.let { showEntryDialog(entries.firstOrNull { e -> e.id == it.entryId }, it) }
+            changed()
+            loadStranded()
+        }
+    }
+
+    /**
+     * Places stranded on a widget Niagara replaced (decisions 5b E5 round 2): "Bring back N places from a replaced
+     * widget" when this widget is the one on the home screen. The move goes to the store at once (nothing to undo
+     * besides moving them again), so it is offered only without unsaved edits; the screen then shows the stored config.
+     */
+    private fun loadStranded() {
+        val button = findViewById<Button>(R.id.stranded_bring_back)
+        scope.launch {
+            val stranded = withContext(Dispatchers.IO) { StrandedPlaces.find(applicationContext) }
+                ?.takeIf { it.target == widgetId }
+            if (stranded == null) {
+                button.visibility = View.GONE
+                return@launch
+            }
+            button.text = resources.getQuantityString(R.plurals.stranded_bring_back, stranded.count, stranded.count)
+            button.visibility = View.VISIBLE
+            button.setOnClickListener {
+                if (confirmDiscard.isEnabled) {
+                    Toast.makeText(this@WidgetConfigActivity, R.string.stranded_save_first, Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
+                button.isEnabled = false
+                scope.launch {
+                    val after = withContext(Dispatchers.IO) { StrandedPlaces.move(applicationContext, stranded) }
+                    val config = after?.configs?.get(widgetId)
+                    button.isEnabled = true
+                    button.visibility = View.GONE
+                    if (config == null) return@launch
+                    Toast.makeText(
+                        applicationContext,
+                        resources.getQuantityString(R.plurals.stranded_moved, stranded.count, stranded.count),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    original = config
+                    rows = config.rows
+                    cols = config.cols
+                    entries.clear()
+                    entries += config.entries
+                    refreshGrid()
+                    rebuildList()
+                    updatePreview()
+                }
+            }
         }
     }
 
@@ -381,8 +463,16 @@ class WidgetConfigActivity : ComponentActivity() {
         rebuildList()
     }
 
+    /** Dark strip (a dark wallpaper) behind icons, or a light one for Outline drawn for light wallpapers (E26). */
+    private fun iconBackground(): Int = if (StyleOptions.forLightWallpaper(style.style)) {
+        R.drawable.icon_preview_background_light
+    } else {
+        R.drawable.icon_preview_background
+    }
+
     private fun updatePreview() {
         preview.removeAllViews()
+        preview.setBackgroundResource(iconBackground())
         val samples = StyleOptions.previewIcons(entries, PREVIEW_ICONS)
         // Shown at the widget's icon size, so the size setting is visible here (decisions 5b U).
         val sizePx = (iconSize.dp * density).toInt()
@@ -409,6 +499,7 @@ class WidgetConfigActivity : ComponentActivity() {
         for ((index, entry) in entries.withIndex()) {
             val row = LayoutInflater.from(this).inflate(R.layout.config_entry_row, entryList, false)
             val icon = row.findViewById<ImageButton>(R.id.entry_icon)
+            icon.setBackgroundResource(iconBackground())
             IconImages.bind(icon, scope, entry.icon, style, entry.id, iconPx)
             icon.contentDescription = getString(R.string.icon_for_entry, entry.label, IconNames.readable(entry.icon))
             icon.setOnClickListener {
@@ -490,19 +581,20 @@ class WidgetConfigActivity : ComponentActivity() {
      * under persistent field labels, plus a hint when the label is too long for a cell (E14). A new entry's icon is
      * guessed from the label until the user picks one. Tapping outside doesn't drop typed text (E18).
      */
-    private fun showEntryDialog(existing: Entry?) {
+    private fun showEntryDialog(existing: Entry?, saved: ConfigScreenState.Dialog? = null) {
         val box = LayoutInflater.from(this).inflate(R.layout.dialog_entry, LinearLayout(this), false)
         val labelInput = box.findViewById<EditText>(R.id.dialog_label)
         val destinationInput = box.findViewById<EditText>(R.id.dialog_destination)
         val iconButton = box.findViewById<ImageButton>(R.id.dialog_icon)
+        iconButton.setBackgroundResource(iconBackground())
         val fitHint = box.findViewById<TextView>(R.id.dialog_label_fit)
         labelInput.setSingleLine()
         destinationInput.setSingleLine()
-        labelInput.setText(existing?.label.orEmpty())
-        destinationInput.setText(existing?.destination.orEmpty())
-        val entryId = existing?.id ?: java.util.UUID.randomUUID().toString()
-        var icon: IconRef = existing?.icon ?: IconGuess.guess("", "")
-        var iconPicked = false
+        labelInput.setText(saved?.label ?: existing?.label.orEmpty())
+        destinationInput.setText(saved?.destination ?: existing?.destination.orEmpty())
+        val entryId = existing?.id ?: saved?.entryId ?: java.util.UUID.randomUUID().toString()
+        var icon: IconRef = saved?.icon ?: existing?.icon ?: IconGuess.guess("", "")
+        var iconPicked = saved?.iconPicked ?: false
         val iconPx = (44 * density).toInt()
         fun showIcon(ref: IconRef) {
             icon = ref
@@ -534,7 +626,11 @@ class WidgetConfigActivity : ComponentActivity() {
                 if (existing == null) scroll.post { scroll.smoothScrollTo(0, addButton.bottom) }
             }
             .setNegativeButton(R.string.cancel, null)
+            .setOnDismissListener { openDialog = null }
             .show()
+        openDialog = {
+            ConfigScreenState.Dialog(entryId, labelInput.text.toString(), destinationInput.text.toString(), icon, iconPicked)
+        }
         val ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
         val validate = {
             ok.isEnabled = labelInput.text.isNotBlank() && destinationInput.text.isNotBlank()

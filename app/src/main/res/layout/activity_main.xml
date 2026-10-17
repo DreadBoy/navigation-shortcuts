@@ -37,6 +37,25 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
 
+        <!-- Places left on a widget Niagara replaced (decisions 5b E5 round 2): offer to move them. -->
+        <LinearLayout
+            android:id="@+id/stranded_box"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/stranded_text"
+                style="@style/ConfigBody" />
+
+            <Button
+                android:id="@+id/stranded_move"
+                style="@style/ConfigTextButton"
+                android:layout_marginStart="-12dp" />
+        </LinearLayout>
+
         <TextView
             style="@style/ConfigSection"
             android:text="@string/main_add_widget" />
