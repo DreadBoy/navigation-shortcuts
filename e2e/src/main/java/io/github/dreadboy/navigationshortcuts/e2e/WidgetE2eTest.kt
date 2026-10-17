@@ -263,11 +263,11 @@ class WidgetE2eTest {
 
         niagara.goHome()
         niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
-        // The pending place goes into the next widget placed (here: after removing the current one, whose own place
-        // is kept pending too and follows it, decisions 5b E5).
+        // The pending place goes into the next widget placed (here: after removing the current one, whose own place is
+        // kept pending too and comes first, ahead of the older pending one: decisions 5b E5, round 2).
         niagara.removeCustomWidgetIfPresent()
         niagara.addOurWidget()
-        niagara.assertWidgetCells(listOf(CASTLE.label, STOZICE.label), E2e.DEFAULT_CELLS - 2)
+        niagara.assertWidgetCells(listOf(STOZICE.label, CASTLE.label), E2e.DEFAULT_CELLS - 2)
     }
 
     /**
