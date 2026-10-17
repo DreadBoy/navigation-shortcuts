@@ -48,8 +48,8 @@
                 android:orientation="horizontal">
 
                 <TextView
+                    style="@style/ConfigFieldLabel"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/config_rows" />
 
@@ -77,8 +77,8 @@
                 android:orientation="horizontal">
 
                 <TextView
+                    style="@style/ConfigFieldLabel"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="@string/config_cols" />
 
@@ -200,7 +200,9 @@
 
             <TextView
                 android:id="@+id/color_label"
-                style="@style/SheetFieldLabel"
+                style="@style/ConfigFieldLabel"
+                android:layout_width="wrap_content"
+                android:layout_marginTop="12dp"
                 android:text="@string/config_color" />
 
             <LinearLayout
@@ -232,10 +234,9 @@
 
             <Button
                 android:id="@+id/add_manual_button"
-                style="?android:attr/borderlessButtonStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/add_manually" />
+                style="@style/ConfigTextButton"
+                android:layout_marginStart="-12dp"
+                android:text="@string/add_manually_plus" />
 
             <TextView
                 android:id="@+id/add_note"
@@ -246,6 +247,41 @@
                 android:visibility="gone" />
         </LinearLayout>
     </ScrollView>
+
+    <!-- Undo after a delete (decisions 5b E18): a snackbar-like bar, no Material dependency. -->
+    <LinearLayout
+        android:id="@+id/undo_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/undo_bar_background"
+        android:gravity="center_vertical"
+        android:minHeight="48dp"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="4dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/undo_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:accessibilityLiveRegion="polite"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="#FFF1F1F4" />
+
+        <Button
+            android:id="@+id/undo_button"
+            style="@android:style/Widget.DeviceDefault.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/undo"
+            android:textAllCaps="false"
+            android:textColor="#FFA8C7FA" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -258,15 +294,12 @@
 
         <Button
             android:id="@+id/config_cancel"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            style="@style/ConfigTextButton"
             android:text="@string/cancel" />
 
         <Button
             android:id="@+id/config_save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            style="@style/ConfigTextButton"
             android:text="@string/save" />
     </LinearLayout>
 </LinearLayout>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Undo bar after a delete in the config screen (a snackbar look without a Material dependency). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF323438" />
+    <corners android:radius="8dp" />
+</shape>

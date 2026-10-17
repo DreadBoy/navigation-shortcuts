@@ -28,7 +28,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Share target: Google Maps → Share → "Add to navigation widget" (spec Flow 2). -->
+        <!-- Share target: Google Maps → Share → "Add to widget" (spec Flow 2; short label, decisions 5b E20). -->
         <activity
             android:name=".AddDestinationActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"

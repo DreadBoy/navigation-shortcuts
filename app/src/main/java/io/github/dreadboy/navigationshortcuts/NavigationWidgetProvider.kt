@@ -28,9 +28,14 @@ class NavigationWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        // The removed widget's destinations move to the pending list (decisions 5b E5): the next widget gets them back.
         goAsync {
-            WidgetStore(context).update { it.delete(appWidgetIds.toList()) }
+            val after = WidgetStore(context).update { it.delete(appWidgetIds.toList()) }
+            Log.i(LOG_TAG, "onDeleted ${appWidgetIds.toList()}: pending now ${after?.pending?.size}, widgets ${after?.configs?.keys}")
             RenderProbe.forget(context, appWidgetIds.toList())
+            // A newer, still empty widget may have taken them over (Replace reported in that order): show them.
+            val adopted = after?.configs?.filterKeys { id -> appWidgetIds.all { id > it } }?.keys.orEmpty()
+            if (adopted.isNotEmpty()) WidgetUpdater.update(context, adopted.toList())
         }
     }
 

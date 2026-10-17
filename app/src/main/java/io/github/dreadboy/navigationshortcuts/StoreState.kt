@@ -23,11 +23,34 @@ data class StoreState(
         return copy(configs = configs + (widgetId to config), pending = leftover)
     }
 
-    /** Drops configs of widgets that no longer exist ([validIds] = AppWidgetManager.getAppWidgetIds). */
-    fun prune(validIds: Collection<Int>): StoreState =
-        copy(configs = configs.filterKeys { it in validIds })
+    /**
+     * Removes configs of widgets that no longer exist ([validIds] = AppWidgetManager.getAppWidgetIds); their destinations
+     * are kept as in [delete] (a removal the launcher didn't report through onDeleted loses nothing either).
+     */
+    fun prune(validIds: Collection<Int>): StoreState = delete(configs.keys.filterNot { it in validIds })
 
-    fun delete(widgetIds: Collection<Int>): StoreState = copy(configs = configs - widgetIds.toSet())
+    /**
+     * A widget was removed (onDeleted, decisions 5b E5): its config goes, its destinations move to the pending list, so
+     * the next widget placed gets them back. Nothing is dropped and nothing is duplicated: an entry already pending or
+     * on a remaining widget (same [Entry.id]) is not added again.
+     *
+     * Launchers can report a "Replace" in either order. New widget placed first: its first update already created an
+     * empty config before the old widget's onDeleted arrives; so if a widget placed after the removed one (a higher ID)
+     * is still empty, the newest such widget takes the pending list over right away, exactly as it would have on its
+     * first update had onDeleted come first. Both orders end in the same state; beyond 6×6 the rest stays pending.
+     */
+    fun delete(widgetIds: Collection<Int>): StoreState {
+        val removed = widgetIds.toSet().filter { it in configs }.sorted()
+        if (removed.isEmpty()) return this
+        val remaining = configs - removed.toSet()
+        val known = remaining.values.flatMap { c -> c.entries.map { it.id } }.toMutableSet().apply { addAll(pending.map { it.id }) }
+        val moved = removed.flatMap { configs.getValue(it).entries }.filter { known.add(it.id) }
+        val after = StoreState(configs = remaining, pending = pending + moved)
+        val adopter = remaining.filter { (id, config) -> id > removed.max() && config.entries.isEmpty() }.keys.maxOrNull()
+            ?: return after
+        val (config, leftover) = remaining.getValue(adopter).plusGrowing(after.pending)
+        return StoreState(configs = remaining + (adopter to config), pending = leftover)
+    }
 
     fun addPending(entry: Entry): StoreState =
         if (isPlaced(entry.id) || pending.any { it.id == entry.id }) this else copy(pending = pending + entry)

@@ -25,8 +25,8 @@ object StyleOptions {
     const val STELLAR = "stellar"
 
     val packs = listOf(
-        Choice(STICKER, "Sticker"),
         Choice(MATERIAL, "Material"),
+        Choice(STICKER, "Sticker"),
         Choice(DOTS, "Dots"),
         Choice(OUTLINE, "Outline"),
         Choice(OUTLINE_CHROMA, "Outline Chroma"),
@@ -61,7 +61,7 @@ object StyleOptions {
     private const val TEXT = "text"
     private const val DOT_SHAPE = "dot_shape"
 
-    private val thickness = Dimension(THICKNESS, "Line", listOf(Choice(Thickness.BOLD.name, "Bold"), Choice(Thickness.THIN.name, "Thin")))
+    private val thickness = Dimension(THICKNESS, "Line width", listOf(Choice(Thickness.BOLD.name, "Bold"), Choice(Thickness.THIN.name, "Thin")))
     private val appOrTheme = Dimension(
         PALETTE,
         "Palette",
@@ -113,10 +113,10 @@ object StyleOptions {
             thickness,
             Dimension(
                 TEXT,
-                "Text",
+                "Line colour",
                 listOf(
-                    Choice(AnyconStyle.Outline.TextMode.LIGHT_TEXT.name, "Light (dark wallpaper)"),
-                    Choice(AnyconStyle.Outline.TextMode.DARK_TEXT.name, "Dark (light wallpaper)"),
+                    Choice(AnyconStyle.Outline.TextMode.LIGHT_TEXT.name, "Light (for dark wallpapers)"),
+                    Choice(AnyconStyle.Outline.TextMode.DARK_TEXT.name, "Dark (for light wallpapers)"),
                 ),
             ),
         )

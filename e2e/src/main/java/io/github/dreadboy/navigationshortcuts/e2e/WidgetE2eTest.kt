@@ -29,6 +29,7 @@ class WidgetE2eTest {
         niagara.assertIsDefaultHome()
         maps.forceStop()
         niagara.removeCustomWidgetIfPresent()
+        AppStore(d).clearPending() // a removed widget's places stay pending (decisions 5b E5): start clean
         val stray = niagara.boundWidgetIdsOfOurApp()
         if (stray.isNotEmpty()) {
             throw AssertionError(
@@ -262,10 +263,40 @@ class WidgetE2eTest {
 
         niagara.goHome()
         niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
-        // The pending place goes into the next widget placed (here: after removing the current one).
+        // The pending place goes into the next widget placed (here: after removing the current one, whose own place
+        // is kept pending too and follows it, decisions 5b E5).
         niagara.removeCustomWidgetIfPresent()
         niagara.addOurWidget()
-        niagara.assertWidgetCells(listOf(CASTLE.label), E2e.DEFAULT_CELLS - 1)
+        niagara.assertWidgetCells(listOf(CASTLE.label, STOZICE.label), E2e.DEFAULT_CELLS - 2)
+    }
+
+    /**
+     * Share sheet system Back (backlog 7.1 owed check on API 36): edit the label → Next → Back → step 1 with the edit
+     * kept and the sheet open → Back again closes the sheet (back on the Maps place page, nothing added).
+     */
+    @Test
+    fun shareSheet_editLabel_next_systemBack_keepsEdit_backAgainCloses() {
+        niagara.addOurWidget()
+        maps.openPlace(STOZICE.query, STOZICE.suggestion)
+        shareCurrentPlace()
+        sheet.setLabel("Stadion")
+        sheet.next()
+        d.ui.pressBack()
+        d.waitFor(By.res(E2e.APP, "label_input"), E2e.SHORT, "step 1 after system Back")
+        assertTrue("on step 1 (Next)", sheet.isOnDetailsStep())
+        assertEquals("edited label kept", "Stadion", sheet.label())
+        assertTrue("sheet still open", d.has(By.res(E2e.APP, "sheet_title")))
+
+        d.ui.pressBack()
+        // A user's Back first hides the keyboard if it is up; then closes the sheet.
+        if (!d.ui.wait(androidx.test.uiautomator.Until.gone(By.res(E2e.APP, "sheet_title")), 2_000) &&
+            d.shell("dumpsys input_method").contains("mInputShown=true")
+        ) {
+            d.ui.pressBack()
+        }
+        sheet.waitGone()
+        assertTrue("back on the Maps place page (foreground ${d.ui.currentPackageName})", maps.isOnPlacePage())
+        niagara.assertEmptyWidget()
     }
 
     /** On a Maps place page: Share → our sheet, resolved (re-shares once on Maps' cid fallback, decisions 3.5). */

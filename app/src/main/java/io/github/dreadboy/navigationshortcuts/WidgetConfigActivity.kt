@@ -1,6 +1,5 @@
 package io.github.dreadboy.navigationshortcuts
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
 import android.content.Context
@@ -9,7 +8,6 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.text.Editable
-import android.text.InputType
 import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
@@ -26,6 +24,8 @@ import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import io.github.dreadboy.navigationshortcuts.anycons.settings.AnyconSettings
 import io.github.dreadboy.navigationshortcuts.anycons.settings.IconShape
 import kotlinx.coroutines.Dispatchers
@@ -38,9 +38,10 @@ import kotlinx.coroutines.withContext
  * Per-widget config screen (PLAN 4.1, decisions 4.1): grid size, icon style with a live preview, and the destination
  * list (add manually, edit, change icon, delete, drag to reorder). Entry points: the widget's empty cells, Niagara's
  * long-press "Change widget settings" (APPWIDGET_CONFIGURE, `reconfigurable|configuration_optional`) and the app's
- * widget list. Changes apply on Save; the widget re-renders at once.
+ * widget list. Changes apply on Save; the widget re-renders at once. Back with unsaved changes asks "Save changes?"
+ * (Save / Discard / Keep editing); Cancel discards without asking (decisions 5b E1). A delete offers Undo (E18).
  */
-class WidgetConfigActivity : Activity() {
+class WidgetConfigActivity : ComponentActivity() {
 
     private val scope = MainScope()
     private lateinit var store: WidgetStore
@@ -77,6 +78,17 @@ class WidgetConfigActivity : Activity() {
     private lateinit var addButton: Button
     private lateinit var addNote: TextView
     private lateinit var saveButton: Button
+    private lateinit var undoBar: View
+    private lateinit var undoText: TextView
+
+    /** The last deleted destination and where it was, until Undo, the next change or the bar times out (E18). */
+    private var lastDeleted: Pair<Int, Entry>? = null
+    private val hideUndo = Runnable { hideUndoBar() }
+
+    /** Back asks before dropping unsaved edits (E1); enabled only while there are any. */
+    private val confirmDiscard = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = showUnsavedDialog()
+    }
 
     private val density get() = resources.displayMetrics.density
 
@@ -117,6 +129,10 @@ class WidgetConfigActivity : Activity() {
         addButton = findViewById(R.id.add_manual_button)
         addNote = findViewById(R.id.add_note)
         saveButton = findViewById(R.id.config_save)
+        undoBar = findViewById(R.id.undo_bar)
+        undoText = findViewById(R.id.undo_text)
+        findViewById<Button>(R.id.undo_button).setOnClickListener { undoDelete() }
+        onBackPressedDispatcher.addCallback(this, confirmDiscard)
 
         rowsMinus.setOnClickListener { setGrid(rows - 1, cols) }
         rowsPlus.setOnClickListener { setGrid(rows + 1, cols) }
@@ -131,7 +147,61 @@ class WidgetConfigActivity : Activity() {
 
     override fun onDestroy() {
         scope.cancel()
+        if (::undoBar.isInitialized) undoBar.removeCallbacks(hideUndo)
         super.onDestroy()
+    }
+
+    // ------------------------------------------------------------------ unsaved changes (E1)
+
+    private fun edited() = WidgetConfig(rows, cols, entries.toList(), style, iconSize)
+
+    /** Called after every edit: Back asks only while something differs from what was loaded. */
+    private fun changed() {
+        confirmDiscard.isEnabled = !saving && SheetTexts.hasUnsavedChanges(original, edited())
+    }
+
+    private fun showUnsavedDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.unsaved_title)
+            .setMessage(R.string.unsaved_message)
+            .setPositiveButton(R.string.save) { _, _ -> save() }
+            .setNegativeButton(R.string.discard) { _, _ ->
+                Log.i(TAG, "unsaved changes discarded (Back)")
+                finish()
+            }
+            .setNeutralButton(R.string.keep_editing, null)
+            .show()
+    }
+
+    // ------------------------------------------------------------------ undo (E18)
+
+    private fun showUndoBar(entry: Entry) {
+        undoText.text = getString(R.string.deleted_entry, entry.label)
+        undoBar.visibility = View.VISIBLE
+        undoBar.removeCallbacks(hideUndo)
+        undoBar.postDelayed(hideUndo, UNDO_TIMEOUT_MS)
+    }
+
+    private fun hideUndoBar() {
+        undoBar.removeCallbacks(hideUndo)
+        undoBar.visibility = View.GONE
+        lastDeleted = null
+    }
+
+    private fun undoDelete() {
+        val (index, entry) = lastDeleted ?: return hideUndoBar()
+        hideUndoBar()
+        if (entries.any { it.id == entry.id }) return
+        // Room is guaranteed: the grid never shrinks below the entry count, and a delete only frees a cell, unless an
+        // add filled it meanwhile; then the grid grows as for any add.
+        growForOneMore()
+        if (rows * cols <= entries.size) return
+        entries.add(index.coerceIn(0, entries.size), entry)
+        Log.i(TAG, "undo: restored '${entry.label}' at $index (not saved yet)")
+        refreshGrid()
+        rebuildList()
+        updatePreview()
+        changed()
     }
 
     private fun load() {
@@ -194,6 +264,7 @@ class WidgetConfigActivity : Activity() {
         val atMax = entries.size >= WidgetConfig.MAX_SIZE * WidgetConfig.MAX_SIZE
         addButton.isEnabled = !atMax
         addNote.visibility = if (atMax) View.VISIBLE else View.GONE
+        changed()
     }
 
     /** Makes room for one more entry: columns first, then rows (as the share sheet's pending takeover does). */
@@ -326,6 +397,7 @@ class WidgetConfigActivity : Activity() {
             IconImages.bind(view, scope, icon, style, seed, sizePx)
         }
         preview.contentDescription = getString(R.string.style_preview) + ": " + StyleOptions.describe(style.style)
+        changed()
     }
 
     // ------------------------------------------------------------------ destinations
@@ -357,7 +429,11 @@ class WidgetConfigActivity : Activity() {
             row.findViewById<ImageButton>(R.id.entry_delete).apply {
                 contentDescription = getString(R.string.delete_entry, entry.label)
                 setOnClickListener {
-                    entries.removeAll { it.id == entry.id }
+                    val at = entries.indexOfFirst { it.id == entry.id }
+                    if (at < 0) return@setOnClickListener
+                    entries.removeAt(at)
+                    lastDeleted = at to entry
+                    showUndoBar(entry)
                     Log.i(TAG, "deleted '${entry.label}' (not saved yet)")
                     rebuildList()
                     refreshGrid()
@@ -409,29 +485,31 @@ class WidgetConfigActivity : Activity() {
         }
     }
 
-    /** Add (existing == null) or edit a destination: label + destination text. New entries get a guessed icon. */
+    /**
+     * Add (existing == null) or edit a destination (decisions 5b E24): icon (tap → the icon picker), label and destination
+     * under persistent field labels, plus a hint when the label is too long for a cell (E14). A new entry's icon is
+     * guessed from the label until the user picks one. Tapping outside doesn't drop typed text (E18).
+     */
     private fun showEntryDialog(existing: Entry?) {
-        val pad = (20 * density).toInt()
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(pad, pad / 2, pad, 0)
+        val box = LayoutInflater.from(this).inflate(R.layout.dialog_entry, LinearLayout(this), false)
+        val labelInput = box.findViewById<EditText>(R.id.dialog_label)
+        val destinationInput = box.findViewById<EditText>(R.id.dialog_destination)
+        val iconButton = box.findViewById<ImageButton>(R.id.dialog_icon)
+        val fitHint = box.findViewById<TextView>(R.id.dialog_label_fit)
+        labelInput.setSingleLine()
+        destinationInput.setSingleLine()
+        labelInput.setText(existing?.label.orEmpty())
+        destinationInput.setText(existing?.destination.orEmpty())
+        val entryId = existing?.id ?: java.util.UUID.randomUUID().toString()
+        var icon: IconRef = existing?.icon ?: IconGuess.guess("", "")
+        var iconPicked = false
+        val iconPx = (44 * density).toInt()
+        fun showIcon(ref: IconRef) {
+            icon = ref
+            IconImages.bind(iconButton, scope, ref, style, entryId, iconPx)
+            iconButton.contentDescription = getString(R.string.change_icon) + ": " + IconNames.readable(ref)
         }
-        val labelInput = EditText(this).apply {
-            id = R.id.dialog_label
-            hint = getString(R.string.field_label)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            setSingleLine()
-            setText(existing?.label.orEmpty())
-        }
-        val destinationInput = EditText(this).apply {
-            id = R.id.dialog_destination
-            hint = getString(R.string.destination_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS
-            setSingleLine()
-            setText(existing?.destination.orEmpty())
-        }
-        box.addView(labelInput)
-        box.addView(destinationInput)
+        showIcon(icon)
         val dialog = AlertDialog.Builder(this)
             .setTitle(if (existing == null) R.string.add_destination else R.string.edit_destination)
             .setView(box)
@@ -442,11 +520,12 @@ class WidgetConfigActivity : Activity() {
                 if (existing == null) {
                     growForOneMore()
                     if (rows * cols <= entries.size) return@setPositiveButton
-                    entries += Entry(label = label, destination = destination, icon = IconGuess.guess(label, destination))
+                    val chosen = if (iconPicked) icon else IconGuess.guess(label, destination)
+                    entries += Entry(label = label, destination = destination, icon = chosen, id = entryId)
                     Log.i(TAG, "added '$label' manually (not saved yet)")
                 } else {
                     val at = entries.indexOfFirst { it.id == existing.id }
-                    if (at >= 0) entries[at] = entries[at].copy(label = label, destination = destination)
+                    if (at >= 0) entries[at] = entries[at].copy(label = label, destination = destination, icon = icon)
                 }
                 refreshGrid()
                 rebuildList()
@@ -459,6 +538,24 @@ class WidgetConfigActivity : Activity() {
         val ok = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
         val validate = {
             ok.isEnabled = labelInput.text.isNotBlank() && destinationInput.text.isNotBlank()
+            // Typed text survives a stray tap outside the dialog (E18); Cancel and Back still close it.
+            val edited = iconPicked || labelInput.text.toString() != existing?.label.orEmpty() ||
+                destinationInput.text.toString() != existing?.destination.orEmpty()
+            dialog.setCanceledOnTouchOutside(!edited)
+            // The cell label at the grid size the entry will have (a new one may grow the grid by a column).
+            val gridCols = if (existing == null && rows * cols <= entries.size && cols < WidgetConfig.MAX_SIZE) cols + 1 else cols
+            LabelFitHint.update(fitHint, labelInput.text.toString(), gridCols, iconSize)
+            if (existing == null && !iconPicked) {
+                val guess = IconGuess.guess(labelInput.text.toString(), destinationInput.text.toString())
+                if (guess != icon) showIcon(guess)
+            }
+        }
+        iconButton.setOnClickListener {
+            IconPicker.show(this, scope, style, entryId, icon) { picked ->
+                iconPicked = true
+                showIcon(picked)
+                validate()
+            }
         }
         val watcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -476,6 +573,7 @@ class WidgetConfigActivity : Activity() {
         val before = original ?: return
         if (saving) return
         saving = true
+        confirmDiscard.isEnabled = false
         saveButton.isEnabled = false
         val edited = WidgetConfig(rows, cols, entries.toList(), style, iconSize)
         scope.launch {
@@ -513,6 +611,9 @@ class WidgetConfigActivity : Activity() {
 
         /** From this many rows the default Niagara slot (315×80 dp) is too short for icons with labels. */
         const val TALL_HINT_ROWS = 2
+
+        /** How long the Undo bar stays after a delete (a long snackbar is ~2.75 s; deliberately longer). */
+        private const val UNDO_TIMEOUT_MS = 8_000L
 
         /** Opens the config for [appWidgetId]; from the widget it starts its own task (no back stack into the app). */
         fun intent(context: Context, appWidgetId: Int, fromWidget: Boolean): Intent =

@@ -58,6 +58,16 @@
                     android:maxLines="1" />
             </LinearLayout>
 
+            <!-- "On the widget: "Stožice Sta…". A shorter label fits." while the label is too long (decisions 5b E14). -->
+            <TextView
+                android:id="@+id/label_fit_hint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="68dp"
+                android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small"
+                android:textColor="?android:attr/textColorSecondary"
+                android:visibility="gone" />
+
             <TextView
                 style="@style/SheetFieldLabel"
                 android:text="@string/field_destination" />

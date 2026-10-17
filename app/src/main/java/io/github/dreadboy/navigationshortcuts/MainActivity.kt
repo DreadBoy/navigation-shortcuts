@@ -2,7 +2,7 @@ package io.github.dreadboy.navigationshortcuts
 
 import android.app.Activity
 import android.os.Bundle
-import android.util.TypedValue
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -45,17 +45,13 @@ class MainActivity : Activity() {
             val list = findViewById<LinearLayout>(R.id.widget_list)
             list.removeAllViews()
             findViewById<View>(R.id.no_widgets_text).visibility = if (ordered.isEmpty()) View.VISIBLE else View.GONE
-            val pad = (12 * resources.displayMetrics.density).toInt()
-            val ripple = TypedValue().also { theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true) }
+            // Cards with a chevron and "Tap to edit …", so they read as tappable (decisions 5b E15).
             for (id in ordered) {
-                list.addView(TextView(this@MainActivity).apply {
-                    text = labels.getValue(id)
-                    contentDescription = getString(R.string.main_open_widget, labels.getValue(id))
-                    setTextAppearance(android.R.style.TextAppearance_DeviceDefault_Medium)
-                    setPadding(0, pad, 0, pad)
-                    setBackgroundResource(ripple.resourceId)
-                    setOnClickListener { startActivity(WidgetConfigActivity.intent(this@MainActivity, id, fromWidget = false)) }
-                })
+                val row = LayoutInflater.from(this@MainActivity).inflate(R.layout.main_widget_row, list, false)
+                row.findViewById<TextView>(R.id.widget_row_title).text = labels.getValue(id)
+                row.contentDescription = getString(R.string.main_open_widget, labels.getValue(id))
+                row.setOnClickListener { startActivity(WidgetConfigActivity.intent(this@MainActivity, id, fromWidget = false)) }
+                list.addView(row)
             }
         }
     }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Text of the settings screen's buttons (decisions 5b E25): accent, dimmed when disabled. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:alpha="0.38" android:color="?android:attr/textColorPrimary" android:state_enabled="false" />
+    <item android:color="?android:attr/colorAccent" />
+</selector>

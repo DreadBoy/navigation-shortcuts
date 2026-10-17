@@ -9,6 +9,7 @@
             <intent-filter>
                 <action android:name="io.github.dreadboy.navigationshortcuts.debug.DUMP_STORE" />
                 <action android:name="io.github.dreadboy.navigationshortcuts.debug.SET_ICON" />
+                <action android:name="io.github.dreadboy.navigationshortcuts.debug.CLEAR_PENDING" />
             </intent-filter>
         </receiver>
     </application>

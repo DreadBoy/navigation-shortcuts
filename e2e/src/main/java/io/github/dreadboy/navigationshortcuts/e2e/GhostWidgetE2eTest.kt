@@ -29,6 +29,7 @@ class GhostWidgetE2eTest {
         niagara.assertIsDefaultHome()
         maps.forceStop()
         niagara.removeCustomWidgetIfPresent()
+        AppStore(d).clearPending() // a removed widget's places stay pending (decisions 5b E5): start clean
     }
 
     @After

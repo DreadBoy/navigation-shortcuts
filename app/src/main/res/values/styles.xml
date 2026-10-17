@@ -60,6 +60,9 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowSoftInputMode">adjustResize|stateHidden</item>
+        <!-- Dark status/navigation bar icons on the light background, light ones in dark mode (decisions 5b E16). -->
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
     </style>
 
     <style name="ConfigSection">
@@ -77,10 +80,27 @@
         <item name="android:textColor">?android:attr/textColorSecondary</item>
     </style>
 
-    <style name="StepperButton">
+    <!-- One look for every control of the settings screen (decisions 5b E25): flat, rounded, accent-coloured. -->
+    <style name="StepperButton" parent="@android:style/Widget.DeviceDefault.Button.Borderless">
         <item name="android:layout_width">56dp</item>
         <item name="android:layout_height">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:background">@drawable/stepper_background</item>
+        <item name="android:textColor">@color/accent_text</item>
         <item name="android:textSize">20sp</item>
+    </style>
+
+    <style name="ConfigTextButton" parent="@android:style/Widget.DeviceDefault.Button.Borderless">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/accent_text</item>
+    </style>
+
+    <style name="ConfigBody">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">?android:attr/textColorSecondary</item>
     </style>
 
     <style name="StepperValue">
