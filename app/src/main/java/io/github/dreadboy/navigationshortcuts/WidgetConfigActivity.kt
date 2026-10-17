@@ -338,7 +338,7 @@ class WidgetConfigActivity : Activity() {
             val row = LayoutInflater.from(this).inflate(R.layout.config_entry_row, entryList, false)
             val icon = row.findViewById<ImageButton>(R.id.entry_icon)
             IconImages.bind(icon, scope, entry.icon, style, entry.id, iconPx)
-            icon.contentDescription = getString(R.string.icon_for_entry, entry.label)
+            icon.contentDescription = getString(R.string.icon_for_entry, entry.label, IconNames.readable(entry.icon))
             icon.setOnClickListener {
                 IconPicker.show(this, scope, style, entry.id, entry.icon) { picked ->
                     val at = entries.indexOfFirst { it.id == entry.id }

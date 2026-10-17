@@ -137,6 +137,16 @@ class AddDestinationActivity : ComponentActivity() {
             override fun afterTextChanged(s: Editable?) = updateButtons()
         }
         labelInput.addTextChangedListener(refresh)
+        // Renaming the place ("Doma") re-guesses the icon until the user picks one (E12).
+        labelInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                if (!resolved || iconChosenByUser) return
+                val guess = IconGuess.guess(s?.toString().orEmpty(), destinationInput.text.toString())
+                if (guess != icon) setIcon(guess)
+            }
+        })
         destinationInput.addTextChangedListener(refresh)
         chips.setOnCheckedChangeListener { _, checkedId ->
             if (checkedId == View.NO_ID) return@setOnCheckedChangeListener
@@ -504,7 +514,7 @@ class AddDestinationActivity : ComponentActivity() {
         icon = ref
         val sizePx = (40 * resources.displayMetrics.density).toInt()
         IconImages.bind(iconButton, scope, ref, currentStyle(), entryId, sizePx)
-        iconButton.contentDescription = getString(R.string.change_icon) + ": " + ref.name
+        iconButton.contentDescription = getString(R.string.change_icon) + ": " + IconNames.readable(ref)
     }
 
     private fun showIconPicker() {

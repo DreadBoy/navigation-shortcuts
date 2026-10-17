@@ -148,8 +148,6 @@ class IconsTest {
     @Test
     fun noFalsePositivesOnCommonNames() {
         assertEquals("pin", guess("Domžale")) // "dom" only as a whole word
-        assertEquals("pin", guess("Ljubljana Castle"))
-        assertEquals("pin", guess("BTC City Ljubljana"))
         assertEquals("pin", guess("Park Zvezda")) // a park is not a car park
         assertEquals("pin", guess("Gorenjska")) // "gora" only as a whole word
         assertEquals("pin", guess("46.071506,14.527154"))
@@ -176,7 +174,8 @@ class IconsTest {
     fun guessPrefersNiagaraGlyphs() {
         assertEquals(IconRef.niagara("cat_home"), IconGuess.guess("Home"))
         assertEquals(IconRef.niagara("cat_fitness"), IconGuess.guess("Gym 24"))
-        assertEquals(IconRef.niagara("act_location"), IconGuess.guess("Ljubljana Castle"))
+        assertEquals(IconRef.niagara("cat_tower_defense_game"), IconGuess.guess("Ljubljana Castle"))
+        assertEquals(IconRef.niagara("act_location"), IconGuess.guess("Prijatelji"))
         // Niagara has no stadium, pool, mountain or parking glyph: the nearest one, never a built-in ref.
         assertEquals(IconRef.niagara("cat_soccer_game"), IconGuess.guess("Stožice Stadium"))
         assertEquals(IconRef.niagara(NiagaraGlyphs.forConcept.getValue("pool")), IconGuess.guess("Bazen Tivoli"))
@@ -222,6 +221,12 @@ class IconsTest {
         assertEquals(listOf("cat_home"), NiagaraGlyphs.glyphsFor(IconRef.niagara("cat_home")))
         assertEquals(listOf("act_home", "cat_home"), NiagaraGlyphs.glyphsFor(IconRef.niagara("act_home")))
         assertEquals(listOf("cat_chess_game", "act_location"), NiagaraGlyphs.glyphsFor(IconRef.niagara("cat_chess_game")))
+        // App glyphs (5b.4): their own glyph, then Niagara's pin; the Material pin when Niagara is missing.
+        assertEquals(
+            listOf("app_com_spotify_music", "act_location"),
+            NiagaraGlyphs.glyphsFor(IconRef.niagara("app_com_spotify_music")),
+        )
+        assertEquals(R.drawable.ic_place_pin, IconResolver.drawableRes(IconRef.niagara("app_com_spotify_music")))
     }
 
     /**
@@ -245,14 +250,91 @@ class IconsTest {
     fun pickableGlyphs() {
         assertTrue(NiagaraGlyphs.isPickable("cat_home"))
         assertTrue(NiagaraGlyphs.isPickable("act_cup"))
-        assertFalse(NiagaraGlyphs.isPickable("app_com_google_android_apps_maps"))
+        assertTrue(NiagaraGlyphs.isPickable("app_com_google_android_apps_maps"))
+        assertTrue(NiagaraGlyphs.isApp("app_com_spotify_music"))
+        assertFalse(NiagaraGlyphs.isApp("cat_home"))
         assertFalse(NiagaraGlyphs.isPickable("act_weather_rain_1_light"))
-        assertEquals("air travel", NiagaraGlyphs.displayName("cat_air_travel"))
+        assertFalse(NiagaraGlyphs.isPickable("ic_launcher"))
     }
 
     @Test
     fun builtInSetHasDistinctDrawables() {
-        assertEquals(14, BuiltInIcons.all.size)
+        assertEquals(15, BuiltInIcons.all.size)
         assertEquals(BuiltInIcons.all.size, BuiltInIcons.all.map { it.second }.toSet().size)
+    }
+
+    /** E22: accessibility labels and picker labels are readable names, never raw glyph names. */
+    @Test
+    fun readableNames() {
+        val cases = mapOf(
+            "cat_air_travel" to "Air travel", "cat_home" to "Home", "act_location" to "Location",
+            "cat_soccer_game" to "Soccer", "cat_chess_game" to "Chess", "act_anycons_koi" to "Koi",
+            "act_cup" to "Coffee", "act_jellyfish" to "Swimming", "cat_tower_defense_game" to "Castle",
+            "act_ic_fluent_gift" to "Gift", "act_pause_circled_48" to "Pause", "cat_game" to "Game",
+            "cat_vpn" to "VPN", "app_com_spotify_music" to "Spotify", "app_com_slack" to "Slack",
+            "app_com_google_android_youtube" to "YouTube", "app_org_mozilla_firefox" to "Firefox",
+            "app_com_zhiliaoapp_musically" to "TikTok",
+        )
+        for ((glyph, name) in cases) {
+            assertEquals(glyph, name, NiagaraGlyphs.displayName(glyph))
+            assertEquals(glyph, name, IconNames.readable(IconRef.niagara(glyph)))
+        }
+        assertEquals("Location", IconNames.readable(IconRef.builtin("pin")))
+        assertEquals("Stadium", IconNames.readable(IconRef.builtin("stadium")))
+        // A glyph added by a Niagara update: a readable guess, never the raw name.
+        assertEquals("Example", NiagaraGlyphs.displayName("app_com_example_notes"))
+        assertEquals("Newthing", NiagaraGlyphs.displayName("cat_newthing"))
+        for (glyph in cases.keys) assertFalse(glyph, '_' in NiagaraGlyphs.displayName(glyph))
+    }
+
+    /** E12: more keywords, with the false-positive rules of decisions 5.8. */
+    @Test
+    fun moreKeywords() {
+        val cases = mapOf(
+            "Doma" to "home", "Moj dom" to "home", "My home" to "home", "Home sweet home" to "home",
+            "Sports complex Tivoli" to "gym", "Športno društvo Partizan" to "gym", "Športni kompleks Ljudski vrt" to "gym",
+            "Shopping center Citypark" to "shop", "Nakupovalni center Supernova" to "shop", "BTC City Ljubljana" to "shop",
+            "Mall of Split" to "shop", "Qlandia Kranj" to "shop",
+            "Ljubljanski grad" to "castle", "Ljubljana Castle" to "castle", "Grad Kodeljevo" to "castle",
+            "Blejski grad" to "castle", "Predjamski grad" to "castle", "Dvorec Zemono" to "castle",
+            "Na gradu" to "castle", "Schloss Schönbrunn" to "castle",
+        )
+        for ((text, concept) in cases) assertEquals(text, concept, IconGuess.concept(text, text))
+        assertEquals(IconRef.niagara("cat_tower_defense_game"), IconGuess.guess("Ljubljanski grad"))
+    }
+
+    /** A keyword glued to digits is the keyword ("GYM24" in Maps, Dunajska c. 154), without new false positives. */
+    @Test
+    fun keywordGluedToDigits() {
+        assertEquals("gym", IconGuess.concept("GYM24", "GYM24, Dunajska cesta 154, 1000 Ljubljana"))
+        assertEquals("gym", IconGuess.concept("x", "GYM24, Dunajska cesta 154, 1000 Ljubljana"))
+        for (text in listOf("Fitnes24", "Gym 24", "fitness365", "SPORT2000")) assertEquals(text, "gym", IconGuess.concept(text))
+        assertEquals("shop", IconGuess.concept("Spar2"))
+        // Digits before letters, digits inside words, and the street/village rules are unchanged.
+        val pins = listOf(
+            "24gym", "A1 Slovenija", "Domžale2", "Gradec12", "Sparkasse24", "Grad12 ulica", "Stadionska 2a",
+            "Šolska ulica 5", "Planina 5, 6232 Planina",
+        )
+        for (text in pins) assertEquals(text, "pin", IconGuess.concept("Prijatelji", text))
+    }
+
+    @Test
+    fun castleFalsePositives() {
+        val pins = listOf(
+            "Slovenj Gradec", "Gradec", "Gradišče nad Pijavo Gorico", "Gradnja d.d. Ljubljana", "Gradbeni center",
+            "Grajska cesta 3", "Pot na grad 5", "Grajski trg 1", "Hamburg", "Gradiška", "Gradnikova ulica 7",
+            "Centralna postaja", "Home Center Ljubljana", "Cankarjev dom",
+        )
+        for (text in pins) assertEquals(text, "pin", IconGuess.concept(text, text))
+        // A village of that name in the address (keyword after a postcode or before a house number) is no castle.
+        assertEquals("pin", IconGuess.concept("Kmetija Novak", "Grad 12, 9264 Grad"))
+        assertEquals("pin", IconGuess.concept("Hiša", "Planina 5, 6232 Planina"))
+        // Maps' label for a shared town carries the postcode: a village name, also in the label (V2 on the AVD).
+        assertEquals("pin", IconGuess.concept("9264 Grad", "9264 Grad, Slovenia"))
+        assertEquals("pin", IconGuess.concept("6232 Planina", "6232 Planina, Slovenia"))
+        assertEquals("pin", IconGuess.concept("2000 Maribor", "2000 Maribor, Slovenia"))
+        // Labels still match before a number ("Gym 24"), addresses still match a place name.
+        assertEquals("gym", IconGuess.concept("Gym 24"))
+        assertEquals("castle", IconGuess.concept("Izlet", "Ljubljanski grad, Grajska planota 1, 1000 Ljubljana"))
     }
 }
