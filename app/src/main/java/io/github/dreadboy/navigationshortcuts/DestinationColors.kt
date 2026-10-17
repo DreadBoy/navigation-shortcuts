@@ -22,9 +22,12 @@ object DestinationColors {
         const val LAVENDER = 0xFFA677F7.toInt()
         const val LIME = 0xFF699F2E.toInt()
         const val MAGENTA = 0xFFDB5DDB.toInt()
+        const val MOSS = 0xFF8A990E.toInt()
+        const val NIAGARA_BLUE = 0xFF6B8CF0.toInt()
         const val ORANGE = 0xFFDC7606.toInt()
         const val PEACOCK = 0xFF00A0B0.toInt()
         const val PERIWINKLE = 0xFF8983F5.toInt()
+        const val PEAR = 0xFFA29200.toInt()
         const val PERSIMMON = 0xFFEE672A.toInt()
         const val PURPLE = 0xFFC36AF0.toInt()
         const val RASPBERRY = 0xFFFA5275.toInt()
@@ -36,10 +39,12 @@ object DestinationColors {
         const val YELLOW = 0xFFB58B00.toInt()
     }
 
-    /** Fallback colours for glyphs without a category, picked by the entry id's hash (distinct, evenly spread hues). */
+    /**
+     * Fallback colours for glyphs without a category, picked by the entry id's hash: the 7 families no category uses,
+     * so a pin never takes a category's exact colour (round 2).
+     */
     val fallback = listOf(
-        Family.AZURE, Family.PERSIMMON, Family.JADE, Family.PURPLE, Family.AMBER, Family.CERULEAN,
-        Family.RASPBERRY, Family.LIME, Family.PERIWINKLE, Family.TEAL, Family.FLAMINGO, Family.ORANGE,
+        Family.NIAGARA_BLUE, Family.ORANGE, Family.PEACOCK, Family.FLAMINGO, Family.MOSS, Family.CERULEAN, Family.PEAR,
     )
 
     /** Category colour per glyph name (without `ic_ip_`); see decisions 5b (U/E9) for the table. */

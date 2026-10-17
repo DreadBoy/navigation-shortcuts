@@ -177,6 +177,7 @@ class WidgetConfigActivity : Activity() {
         rows = r
         cols = c
         refreshGrid()
+        updatePreview() // the effective icon size depends on the columns
     }
 
     private fun refreshGrid() {
@@ -313,17 +314,20 @@ class WidgetConfigActivity : Activity() {
     private fun updatePreview() {
         preview.removeAllViews()
         val samples = StyleOptions.previewIcons(entries, PREVIEW_ICONS)
-        // Shown at the widget's icon size, so the size setting is visible here (decisions 5b U).
-        val sizePx = (iconSize.dp * density).toInt()
+        // Shown as on the widget: the effective icon size for these columns, shape packs at Niagara's adaptive-icon
+        // size (decisions 5b U, IconLayout).
+        val sizePx = (iconSize.fitting(cols).dp * density).toInt()
+        val iconPadding = IconLayout.paddingPx(style, sizePx)
         val margin = (8 * density).toInt()
         for ((icon, seed) in samples) {
             val view = ImageView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(sizePx, sizePx).apply { setMargins(margin, 0, margin, 0) }
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
             }
             preview.addView(view)
-            IconImages.bind(view, scope, icon, style, seed, sizePx)
+            IconImages.bind(view, scope, icon, style, seed, sizePx - 2 * iconPadding)
         }
         preview.contentDescription = getString(R.string.style_preview) + ": " + StyleOptions.describe(style.style)
     }

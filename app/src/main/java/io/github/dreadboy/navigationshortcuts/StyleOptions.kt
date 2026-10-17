@@ -137,15 +137,16 @@ object StyleOptions {
     }
 
     /**
-     * Whether [style] uses the widget's seed colour ("Icon colour" swatches, decisions 5b U/E8): theme-colour palettes,
-     * Material, Stellar and Outline with fill (its faint tint). Fixed palettes (Coral, Opal, Marble white/black),
-     * app colours and Outline without fill ignore it, so the swatches are hidden there.
+     * Whether [style] visibly uses the widget's seed colour ("Icon colour" swatches, decisions 5b U/E8): theme-colour
+     * palettes, Material and Stellar. Fixed palettes (Coral, Opal, Marble white/black), app colours and Outline (whose
+     * fill tint is too faint to see) don't, so the swatches are hidden there.
      */
     fun usesSeedColor(style: AnyconStyle): Boolean = when (style) {
         is AnyconStyle.Material -> true
         is AnyconStyle.Sticker -> style.palette == AnyconStyle.Sticker.Palette.THEME_COLORS
         is AnyconStyle.Dots -> style.palette == AppOrThemePalette.THEME_COLORS
-        is AnyconStyle.Outline -> style.fillType == AnyconStyle.Outline.FillType.FILL
+        // Outline's fill is a faint tint (chroma <= 0.05 at 20 % alpha, as in Niagara): swatches barely change it.
+        is AnyconStyle.Outline -> false
         is AnyconStyle.OutlineChroma -> style.palette == AppOrThemePalette.THEME_COLORS
         is AnyconStyle.Watercolor -> style.palette == AppOrThemePalette.THEME_COLORS
         is AnyconStyle.Marble -> style.palette == AnyconStyle.Marble.Palette.THEME_COLORS

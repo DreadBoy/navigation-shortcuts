@@ -21,7 +21,18 @@ object WidgetRenderer {
     private const val TAG = "NavShortIcons"
 
     fun render(context: Context, appWidgetId: Int, config: WidgetConfig): RemoteViews {
-        val icons = drawIcons(context, appWidgetId, config)
+        val size = config.iconSize.fitting(config.cols)
+        val viewPx = iconPx(context, size)
+        val paddingPx = IconLayout.paddingPx(config.style, viewPx)
+        val contentPx = viewPx - 2 * paddingPx
+        val icons = drawIcons(context, appWidgetId, config, contentPx)
+        val labelStartPx = IconLayout.labelStartPx(
+            paddingPx,
+            icons.values.mapNotNull { leftEdge(it) },
+            icons.values.firstOrNull()?.width ?: 0,
+            contentPx,
+        )
+        val labelEndPx = (2 * context.resources.displayMetrics.density).roundToInt()
         val root = RemoteViews(context.packageName, R.layout.widget_grid)
         root.setImageViewUri(R.id.render_probe, RenderProbe.uri(context, appWidgetId, RenderProbe.nextGeneration(context, appWidgetId)))
         root.removeAllViews(R.id.grid_root)
@@ -46,7 +57,7 @@ object WidgetRenderer {
                 rowViews.addView(
                     R.id.grid_row,
                     if (entry != null) {
-                        filledCell(context, appWidgetId, index, entry, icons[index], config.iconSize.fitting(config.cols))
+                        filledCell(context, appWidgetId, index, entry, icons[index], size, paddingPx, labelStartPx, labelEndPx)
                     } else {
                         emptyCell(context, appWidgetId, index)
                     },
@@ -62,7 +73,7 @@ object WidgetRenderer {
      * Niagara bitmaps for the visible icons (index → bitmap), `builtin` refs included: while Niagara is readable every
      * icon is a Niagara glyph (decisions 5.6). Missing index = built-in Material fallback.
      */
-    private fun drawIcons(context: Context, appWidgetId: Int, config: WidgetConfig): Map<Int, Bitmap> {
+    private fun drawIcons(context: Context, appWidgetId: Int, config: WidgetConfig, contentPx: Int): Map<Int, Bitmap> {
         val visible = config.entries.take(config.capacity).withIndex().toList()
         if (visible.isEmpty()) return emptyMap()
         val session = try {
@@ -72,7 +83,7 @@ object WidgetRenderer {
             return emptyMap()
         }
         if (!session.niagaraInstalled) return emptyMap()
-        val sizePx = IconRendering.cellSizePx(visible.size, iconPx(context, config.iconSize.fitting(config.cols)))
+        val sizePx = IconRendering.cellSizePx(visible.size, contentPx)
         val result = HashMap<Int, Bitmap>()
         val glyphMs = ArrayList<Double>()
         val renderMs = ArrayList<Double>()
@@ -120,8 +131,31 @@ object WidgetRenderer {
         IconSize.LARGE -> R.layout.widget_cell_large
     }
 
-    private fun filledCell(context: Context, appWidgetId: Int, index: Int, entry: Entry, bitmap: Bitmap?, size: IconSize): RemoteViews =
+    /** Leftmost visible column of [bitmap] (IconLayout.leftEdge), or null if it can't be read. */
+    private fun leftEdge(bitmap: Bitmap): Int? = try {
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        IconLayout.leftEdge(pixels, bitmap.width, bitmap.height)
+    } catch (e: Exception) {
+        null
+    }
+
+    @Suppress("LongParameterList")
+    private fun filledCell(
+        context: Context,
+        appWidgetId: Int,
+        index: Int,
+        entry: Entry,
+        bitmap: Bitmap?,
+        size: IconSize,
+        paddingPx: Int,
+        labelStartPx: Int,
+        labelEndPx: Int,
+    ): RemoteViews =
         RemoteViews(context.packageName, cellLayout(size)).apply {
+            // Shape packs at Niagara's adaptive-icon size; label on the icons' visible left edge (decisions 5b U/E19).
+            setViewPadding(R.id.cell_icon, paddingPx, paddingPx, paddingPx, paddingPx)
+            setViewPadding(R.id.cell_label, labelStartPx, 0, labelEndPx, 0)
             if (bitmap != null) setImageViewBitmap(R.id.cell_icon, bitmap)
             else setImageViewResource(R.id.cell_icon, IconResolver.drawableRes(entry.icon))
             setTextViewText(R.id.cell_label, entry.label)

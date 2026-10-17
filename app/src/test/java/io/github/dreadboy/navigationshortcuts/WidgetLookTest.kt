@@ -40,7 +40,9 @@ class WidgetLookTest {
         // Stable: same id → same colour, every time (String.hashCode is specified).
         assertEquals(colours, ids.map { DestinationColors.colorFor("act_location", it) })
         // Spread: pins at different places don't all look alike.
-        assertTrue(colours.toSet().size >= 6)
+        assertTrue(colours.toSet().size >= 5)
+        // Never a category's colour (a pin must not look like "work").
+        assertTrue(DestinationColors.fallback.none { it in DestinationColors.byGlyph.values })
         assertTrue(colours.all { it in DestinationColors.fallback })
         // Pinned values, so a refactor can't silently recolour the user's widgets.
         assertEquals(DestinationColors.fallback[Math.floorMod("abc".hashCode(), DestinationColors.fallback.size)],
@@ -84,7 +86,8 @@ class WidgetLookTest {
         assertTrue("Marble · White" in ignores && "Marble · Black" in ignores && "Marble · Theme colours" in uses)
         assertTrue("Watercolor · App colours" in ignores && "Watercolor · Theme colours" in uses)
         assertTrue(uses.any { it.startsWith("Material") } && "Stellar" in uses)
-        assertTrue(ignores.filter { it.startsWith("Outline ·") }.all { "No fill" in it })
+        // Outline's fill tint is too faint for the swatches to show (round 2): hidden for every Outline variant.
+        assertTrue(ignores.count { it.startsWith("Outline ·") } == 8 && uses.none { it.startsWith("Outline ·") })
         // Every app-colour palette ignores the seed (the swatches would do nothing there).
         assertTrue(ignores.containsAll(uses.filter { "App colours" in it }) && uses.none { "App colours" in it })
     }
@@ -163,5 +166,37 @@ class WidgetLookTest {
         for (glyph in DestinationColors.byGlyph.keys) {
             assertTrue("ic_ip_$glyph exists in Niagara", File(drawables, "ic_ip_$glyph.xml").isFile)
         }
+    }
+
+    @Test
+    fun shapePacksGetNiagarasAdaptiveIconSize() {
+        fun s(style: AnyconStyle) = AnyconSettings(style = style)
+        // 116 px view -> 98 px visible shape, 9 px each side (Niagara's Maps icon: view at 121, shape at 130).
+        assertEquals(9, IconLayout.paddingPx(s(AnyconStyle.Material()), 116))
+        assertEquals(9, IconLayout.paddingPx(s(AnyconStyle.Bright()), 116))
+        assertEquals(9, IconLayout.paddingPx(s(AnyconStyle.Marble()), 116))
+        assertEquals(9, IconLayout.paddingPx(s(AnyconStyle.Stellar), 116))
+        assertEquals(98, 116 - 2 * IconLayout.paddingPx(s(AnyconStyle.Material()), 116))
+        // Glyph packs fill the view, as in Niagara (their composition has its own margin).
+        assertEquals(0, IconLayout.paddingPx(WidgetConfig.DEFAULT_STYLE, 116))
+        assertEquals(0, IconLayout.paddingPx(s(AnyconStyle.Outline()), 116))
+        assertEquals(0, IconLayout.paddingPx(s(AnyconStyle.Watercolor()), 116))
+        assertEquals(0, IconLayout.paddingPx(s(AnyconStyle.Dots()), 116))
+    }
+
+    @Test
+    fun labelStartsAtTheIconsVisibleEdge() {
+        // 4x3 bitmap with the first opaque column at x=2 (a half-transparent shadow at x=1 doesn't count).
+        val w = 4
+        val px = IntArray(w * 3)
+        px[1 * w + 1] = 0x40000000
+        px[2 * w + 2] = 0xFF000000.toInt()
+        assertEquals(2, IconLayout.leftEdge(px, w, 3))
+        assertEquals(null, IconLayout.leftEdge(IntArray(9), 3, 3))
+        // Median edge, scaled from the bitmap to the drawn size, plus the view padding.
+        assertEquals(9 + 10, IconLayout.labelStartPx(9, listOf(10, 12, 8), 98, 98))
+        assertEquals(20, IconLayout.labelStartPx(0, listOf(19, 20, 18, 30), 116, 116))
+        assertEquals(20, IconLayout.labelStartPx(0, listOf(10), 58, 116))
+        assertEquals(9, IconLayout.labelStartPx(9, emptyList(), 0, 98))
     }
 }
