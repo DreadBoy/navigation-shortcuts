@@ -238,6 +238,46 @@ class ConfigE2eTest {
         maps.assertNavigationIntentFor(ZOO.second)
     }
 
+    /**
+     * Decisions 5b round 3: app screen → widget → an unsaved destination → Home → reopen the app from Niagara (a launcher
+     * relaunch resets the task): the config screen is back with the unsaved destination; Save puts it on the widget.
+     */
+    @Test
+    fun appScreenConfig_unsavedEdit_survivesHomeAndLauncherRelaunch() {
+        niagara.addOurWidget()
+        niagara.openOurApp()
+        d.waitFor(By.pkg(E2e.APP).text("Empty widget"), E2e.LONG, "our widget in the app's widget list").click()
+        config.awaitShown()
+        config.addManually(TIVOLI.first, TIVOLI.second)
+
+        niagara.goHome()
+        niagara.openOurApp()
+        config.awaitShown()
+        assertEquals("unsaved destination kept", listOf(TIVOLI.first), config.entries())
+        config.save()
+        niagara.goHome()
+        niagara.assertWidgetCells(listOf(TIVOLI.first), 3)
+    }
+
+    /**
+     * Decisions 5b round 3: the widget's "+ Add destinations" cell → an unsaved destination → Home → the cell again (a
+     * fresh screen) shows the unsaved destination (draft); Save puts it on the widget.
+     */
+    @Test
+    fun widgetCellConfig_unsavedEdit_survivesHomeAndReopeningFromTheWidget() {
+        niagara.addOurWidget()
+        niagara.addCell().click()
+        config.awaitShown()
+        config.addManually(ZOO.first, ZOO.second)
+
+        niagara.goHome()
+        niagara.addCell().click()
+        config.awaitShown()
+        assertEquals("unsaved destination kept as a draft", listOf(ZOO.first), config.entries())
+        config.save()
+        niagara.assertWidgetCells(listOf(ZOO.first), 3)
+    }
+
     /** Screen area of the cell's icon view. */
     private fun iconArea(label: String): Bitmap {
         val labelView = niagara.cell(label)

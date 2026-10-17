@@ -36,6 +36,7 @@
         <item quantity="other">Moved %1$d places to the widget</item>
     </plurals>
     <string name="stranded_save_first">Save or discard your changes first.</string>
+    <string name="draft_restored">Your unsaved changes are back. Save or discard them.</string>
     <string name="main_add_widget">Add the widget in Niagara</string>
     <string name="main_add_widget_steps">1. Long-press the clock on your home screen.\n2. Tap \"Add Custom Widget\".\n3. Scroll to \"Navigation Shortcuts\", tap it, then tap the widget preview.</string>
     <string name="main_other_launchers">Other launchers: long-press an empty spot on the home screen → Widgets → Navigation Shortcuts.</string>

@@ -83,6 +83,29 @@ class RecreationTest {
         backAsksToSave(restored)
     }
 
+    /** Round 3: Home (stop without finishing) keeps a draft; the next screen for the widget — a fresh one — shows it. */
+    @Test
+    fun configScreen_draftAfterHome_isBackInAFreshScreen_andDiscardDropsIt() {
+        val intent = configIntent()
+        val first = Robolectric.buildActivity(WidgetConfigActivity::class.java, intent).setup()
+        loaded(first).findViewById<Button>(R.id.rows_plus).performClick()
+        first.pause().stop() // Home: not finishing
+        val second = Robolectric.buildActivity(WidgetConfigActivity::class.java, intent).setup()
+        val fresh = loaded(second)
+        assertEquals("draft restored in a fresh screen", "2", rows(fresh))
+        // Discard: the draft goes, the next screen shows the stored config.
+        @Suppress("DEPRECATION")
+        fresh.onBackPressed()
+        idle()
+        val dialog = ShadowDialog.getLatestDialog() as android.app.AlertDialog
+        dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).performClick()
+        idle()
+        assertTrue(fresh.isFinishing)
+        second.pause().stop().destroy()
+        val third = Robolectric.buildActivity(WidgetConfigActivity::class.java, intent).setup()
+        assertEquals("no draft after Discard", "1", rows(loaded(third)))
+    }
+
     @Test
     fun configScreen_keepsAnOpenAddDialogsText() {
         val controller = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent()).setup()

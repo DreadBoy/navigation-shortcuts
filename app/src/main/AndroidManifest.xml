@@ -60,6 +60,15 @@
             </intent-filter>
         </activity>
 
+        <!-- The same config screen opened from the app screen: no own task affinity, so it stays in the app's task and a
+             relaunch from the launcher icon brings it back with unsaved edits (decisions 5b round 3). Not exported. -->
+        <activity
+            android:name=".AppTaskConfigActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
+            android:exported="false"
+            android:label="@string/config_title"
+            android:theme="@style/Theme.NavShort.Config" />
+
         <receiver
             android:name=".NavigationWidgetProvider"
             android:exported="true"

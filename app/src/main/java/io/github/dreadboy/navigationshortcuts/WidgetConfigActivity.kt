@@ -41,7 +41,7 @@ import kotlinx.coroutines.withContext
  * widget list. Changes apply on Save; the widget re-renders at once. Back with unsaved changes asks "Save changes?"
  * (Save / Discard / Keep editing); Cancel discards without asking (decisions 5b E1). A delete offers Undo (E18).
  */
-class WidgetConfigActivity : ComponentActivity() {
+open class WidgetConfigActivity : ComponentActivity() {
 
     private val scope = MainScope()
     private lateinit var store: WidgetStore
@@ -85,8 +85,10 @@ class WidgetConfigActivity : ComponentActivity() {
     private var lastDeleted: Pair<Int, Entry>? = null
     private val hideUndo = Runnable { hideUndoBar() }
 
-    /** Saved screen state after a recreation, applied once the stored config is loaded. */
+    /** Saved screen state after a recreation (or a draft, see [onStop]), applied once the stored config is loaded. */
     private var restored: ConfigScreenState? = null
+    private var restoredFromDraft = false
+    private var discarded = false
 
     /** State of the open Add/Edit dialog, for the saved instance state; null while none is open. */
     private var openDialog: (() -> ConfigScreenState.Dialog)? = null
@@ -145,10 +147,11 @@ class WidgetConfigActivity : ComponentActivity() {
         colsMinus.setOnClickListener { setGrid(rows, cols - 1) }
         colsPlus.setOnClickListener { setGrid(rows, cols + 1) }
         addButton.setOnClickListener { showEntryDialog(null) }
-        findViewById<Button>(R.id.config_cancel).setOnClickListener { finish() }
+        findViewById<Button>(R.id.config_cancel).setOnClickListener { discardAndFinish() }
         saveButton.setOnClickListener { save() }
         saveButton.isEnabled = false
         restored = savedInstanceState?.let { ConfigScreenState.from(it) }
+            ?: ConfigDrafts.load(this, widgetId)?.also { restoredFromDraft = true }
         load()
     }
 
@@ -159,15 +162,42 @@ class WidgetConfigActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         val loaded = original ?: restored?.original ?: return
-        val state = if (original == null) restored!! else ConfigScreenState(
-            original = loaded,
-            edited = edited(),
-            deletedIndex = lastDeleted?.first,
-            deleted = lastDeleted?.second,
-            dialog = openDialog?.invoke(),
-        )
+        val state = if (original == null) restored!! else currentState(loaded)
         state.into(outState)
     }
+
+    /**
+     * Leaving with unsaved edits without deciding (Home, another app) keeps them as a draft for this widget, so coming
+     * back through any entry point — the widget's cell, Niagara's "Change widget settings" (each starts a fresh screen)
+     * or the app — shows them again (decisions 5b round 3). Leaving deliberately (Save, Discard, Cancel, Back without
+     * changes: the screen is finishing) drops the draft.
+     */
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations || widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return
+        val loaded = original ?: return // not loaded yet: a draft that is still to be applied stays
+        // Not isFinishing: a launcher may finish the screen it started for configuration when its home comes back.
+        if (discarded || saving || !SheetTexts.hasUnsavedChanges(loaded, edited())) {
+            ConfigDrafts.clear(this, widgetId)
+        } else {
+            ConfigDrafts.save(this, widgetId, currentState(loaded))
+        }
+    }
+
+    /** Cancel or "Discard": the user dropped the edits on purpose, so no draft is kept. */
+    private fun discardAndFinish() {
+        discarded = true
+        ConfigDrafts.clear(this, widgetId)
+        finish()
+    }
+
+    private fun currentState(loaded: WidgetConfig) = ConfigScreenState(
+        original = loaded,
+        edited = edited(),
+        deletedIndex = lastDeleted?.first,
+        deleted = lastDeleted?.second,
+        dialog = openDialog?.invoke(),
+    )
 
     override fun onDestroy() {
         scope.cancel()
@@ -191,7 +221,7 @@ class WidgetConfigActivity : ComponentActivity() {
             .setPositiveButton(R.string.save) { _, _ -> save() }
             .setNegativeButton(R.string.discard) { _, _ ->
                 Log.i(TAG, "unsaved changes discarded (Back)")
-                finish()
+                discardAndFinish()
             }
             .setNeutralButton(R.string.keep_editing, null)
             .show()
@@ -250,7 +280,10 @@ class WidgetConfigActivity : ComponentActivity() {
             restored = null
             original = saved?.original ?: stored
             val config = saved?.edited ?: stored
-            if (saved != null) Log.i(TAG, "restored unsaved edits of widget $widgetId")
+            if (saved != null) Log.i(TAG, "restored unsaved edits of widget $widgetId${if (restoredFromDraft) " (draft)" else ""}")
+            if (saved != null && restoredFromDraft) {
+                Toast.makeText(this@WidgetConfigActivity, R.string.draft_restored, Toast.LENGTH_LONG).show()
+            }
             rows = config.rows
             cols = config.cols
             entries.clear()
@@ -714,10 +747,21 @@ class WidgetConfigActivity : ComponentActivity() {
         /** How long the Undo bar stays after a delete (a long snackbar is ~2.75 s; deliberately longer). */
         private const val UNDO_TIMEOUT_MS = 8_000L
 
-        /** Opens the config for [appWidgetId]; from the widget it starts its own task (no back stack into the app). */
+        /**
+         * Opens the config for [appWidgetId]; from the widget it starts its own task (no back stack into the app). From the
+         * app screen it is [AppTaskConfigActivity], which stays in the app's task, so reopening the app from its launcher
+         * icon brings the screen back with its unsaved edits (decisions 5b round 3).
+         */
         fun intent(context: Context, appWidgetId: Int, fromWidget: Boolean): Intent =
-            Intent(context, WidgetConfigActivity::class.java)
+            Intent(context, if (fromWidget) WidgetConfigActivity::class.java else AppTaskConfigActivity::class.java)
                 .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 .apply { if (fromWidget) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK) }
     }
 }
+
+/**
+ * The config screen opened from the app screen (decisions 5b round 3): same screen, but declared without the empty
+ * `taskAffinity` of [WidgetConfigActivity], so it lives in the app's task. A launcher relaunch resets a task and drops
+ * activities of another affinity; this one stays on top with its unsaved edits.
+ */
+class AppTaskConfigActivity : WidgetConfigActivity()
