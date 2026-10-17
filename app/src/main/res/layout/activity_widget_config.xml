@@ -151,6 +151,7 @@
 
                 <Spinner
                     android:id="@+id/style_pack"
+                    android:contentDescription="@string/config_pack"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />
@@ -175,6 +176,7 @@
 
                 <Spinner
                     android:id="@+id/style_shape"
+                    android:contentDescription="@string/config_shape"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1" />

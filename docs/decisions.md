@@ -423,6 +423,8 @@ Checked on the AVD (API 36, Niagara 1.16.33 free, Maps 25.11) with real Niagara,
   - Target: the newest widget not flagged. The places are appended in their order, the grid grows as usual (columns first, up to 6×6), the rest goes to the end of the pending list; entries already on the target are not copied; the ghost keeps its grid and style but no places, so nothing comes back twice (`StoreState.movePlaces`, `WidgetChooser.stranded`, unit-tested). The flag stays soft (3.9): nothing moves without the user's tap. E2E: widget with Zoo + Tivoli → Replace via Niagara → app screen → Move → both on the visible widget, Zoo navigates.
 - **Remove → place again keeps the widget's order** (minor): the removed widget's places go to the *front* of the pending list in their order, older pending places after them; on a full next widget the overflow is the older pending places, not the widget's last one (unit test).
 - **Outline with the dark line colour** is shown on a light strip (preview, list icons, Add/Edit icon) — it is drawn for light wallpapers and was invisible on the dark strip.
+- **Rename re-guesses the icon in the Edit dialog too** (as in the share sheet): for an existing entry only while its icon is still the guess for its old name — a hand-picked icon isn't tracked, but differs from the guess, so it stays — and until an icon is picked in the dialog.
+- **Accessibility**: the Pack and Shape spinners have content descriptions (the variant spinners already had theirs).
 - **App screen cards**: white card with a thin outline and primary-colour title in light mode (round 1's grey fill looked disabled), a lighter grey card in dark mode.
 
 ## Known issues

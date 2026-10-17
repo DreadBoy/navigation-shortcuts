@@ -81,6 +81,14 @@ class SheetTextsTest {
     }
 
     @Test
+    fun renameReGuessesOnlyAGuessedIcon() {
+        assertTrue("new entry", SheetTexts.iconFollowsLabel(null))
+        val guessed = Entry("Ljubljanski grad", "Grajska planota 1", IconGuess.guess("Ljubljanski grad", "Grajska planota 1"))
+        assertTrue("icon is the guess for its name", SheetTexts.iconFollowsLabel(guessed))
+        assertFalse("icon picked by hand", SheetTexts.iconFollowsLabel(guessed.copy(icon = IconRef.niagara("act_cup"))))
+    }
+
+    @Test
     fun deleteThenUndoIsNoChange() {
         val a = Entry("A", "a dest", IconRef.niagara("cat_home"), id = "a")
         val b = Entry("B", "b dest", IconRef.niagara("cat_office"), id = "b")

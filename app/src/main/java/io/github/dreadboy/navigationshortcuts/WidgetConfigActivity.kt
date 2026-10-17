@@ -595,6 +595,7 @@ class WidgetConfigActivity : ComponentActivity() {
         val entryId = existing?.id ?: saved?.entryId ?: java.util.UUID.randomUUID().toString()
         var icon: IconRef = saved?.icon ?: existing?.icon ?: IconGuess.guess("", "")
         var iconPicked = saved?.iconPicked ?: false
+        val autoIcon = SheetTexts.iconFollowsLabel(existing)
         val iconPx = (44 * density).toInt()
         fun showIcon(ref: IconRef) {
             icon = ref
@@ -641,7 +642,9 @@ class WidgetConfigActivity : ComponentActivity() {
             // The cell label at the grid size the entry will have (a new one may grow the grid by a column).
             val gridCols = if (existing == null && rows * cols <= entries.size && cols < WidgetConfig.MAX_SIZE) cols + 1 else cols
             LabelFitHint.update(fitHint, labelInput.text.toString(), gridCols, iconSize)
-            if (existing == null && !iconPicked) {
+            // Renaming re-guesses the icon, as in the share sheet — for an existing entry only while its icon is still
+            // the guess for its old name (an icon picked by hand earlier stays), and until one is picked here.
+            if (autoIcon && !iconPicked) {
                 val guess = IconGuess.guess(labelInput.text.toString(), destinationInput.text.toString())
                 if (guess != icon) showIcon(guess)
             }

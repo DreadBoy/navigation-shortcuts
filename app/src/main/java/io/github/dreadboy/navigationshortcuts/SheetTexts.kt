@@ -45,6 +45,13 @@ object SheetTexts {
     /** Config screen (E1): whether the edited state differs from what was loaded, i.e. Back must ask. */
     fun hasUnsavedChanges(original: WidgetConfig?, edited: WidgetConfig): Boolean = original != null && original != edited
 
+    /**
+     * Add/Edit dialog: whether renaming re-guesses the icon. A new entry: yes. An existing one: only while its icon is
+     * still the guess for its current name — an icon picked by hand isn't tracked, but differs from the guess.
+     */
+    fun iconFollowsLabel(existing: Entry?): Boolean =
+        existing == null || existing.icon == IconGuess.guess(existing.label, existing.destination)
+
     private const val LABEL_PADDING_DP = 3
     const val ELLIPSIS = "…"
 }
