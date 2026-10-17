@@ -29,6 +29,23 @@ class StyleOptionsTest {
     }
 
     @Test
+    fun packsInNiagarasOrder_andPlainOutlineWording() {
+        assertEquals(
+            listOf("Material", "Sticker", "Dots", "Outline", "Watercolor", "Marble", "Bright", "Stellar", "Outline Chroma"),
+            StyleOptions.packs.map { it.label },
+        )
+        val outline = StyleOptions.dimensions(StyleOptions.OUTLINE).map { d -> d.label to d.choices.map { it.label } }
+        assertEquals(
+            listOf(
+                "Fill" to listOf("No fill", "Fill"),
+                "Line width" to listOf("Bold", "Thin"),
+                "Line colour" to listOf("Light (for dark wallpapers)", "Dark (for light wallpapers)"),
+            ),
+            outline,
+        )
+    }
+
+    @Test
     fun missingChoicesTakeThePacksFirstChoice() {
         assertEquals(AnyconStyle.Sticker(AnyconStyle.Sticker.Palette.CORAL), StyleOptions.build(StyleOptions.STICKER, emptyMap()))
         assertEquals(

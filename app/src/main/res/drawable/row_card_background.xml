@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Tappable card (app screen widget rows): a raised surface with a ripple. -->
+<!-- Tappable card (app screen widget rows, decisions 5b E15): a tinted rounded surface with an outline and a ripple,
+     visible on the light and the dark background. -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="?android:attr/colorControlHighlight">
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="?android:attr/colorBackgroundFloating" />
+            <solid android:color="?android:attr/colorControlHighlight" />
+            <stroke android:width="1dp" android:color="?android:attr/colorControlHighlight" />
             <corners android:radius="16dp" />
         </shape>
     </item>

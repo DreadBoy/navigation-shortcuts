@@ -24,16 +24,17 @@ object StyleOptions {
     const val BRIGHT = "bright"
     const val STELLAR = "stellar"
 
+    /** In Niagara's own order (Themes → Edit Current Theme → App icons → Anycons, 1.16.33; decisions 5b E25). */
     val packs = listOf(
         Choice(MATERIAL, "Material"),
         Choice(STICKER, "Sticker"),
         Choice(DOTS, "Dots"),
         Choice(OUTLINE, "Outline"),
-        Choice(OUTLINE_CHROMA, "Outline Chroma"),
         Choice(WATERCOLOR, "Watercolor"),
         Choice(MARBLE, "Marble"),
         Choice(BRIGHT, "Bright"),
         Choice(STELLAR, "Stellar"),
+        Choice(OUTLINE_CHROMA, "Outline Chroma"),
     )
 
     val shapes = listOf(

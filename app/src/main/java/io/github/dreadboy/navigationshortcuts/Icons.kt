@@ -56,7 +56,7 @@ object NiagaraGlyphs {
         "shop" to "cat_shopping",
         "restaurant" to "cat_food",
         "cafe" to "act_cup",
-        "hospital" to "cat_health",
+        "hospital" to "cat_doctor_game", // stethoscope (decisions 5b); was the lotus cat_health
         "airport" to "cat_air_travel",
         "stadium" to "cat_soccer_game",
         "pool" to "act_jellyfish",
@@ -82,7 +82,7 @@ object NiagaraGlyphs {
             "cat_jobs" to "work",
             "cat_educational_game" to "school",
             "cat_children" to "school",
-            "cat_doctor_game" to "hospital",
+            "cat_health" to "hospital", // entries guessed before 0.4.0 keep it
             "cat_flight_simulator_game" to "airport",
             "cat_maps_and_navigation" to BuiltInIcons.PIN,
         )
