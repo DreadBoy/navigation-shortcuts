@@ -46,7 +46,7 @@ class MainActivity : Activity() {
             val labels = WidgetChooser.labels(
                 ids = ordered,
                 summaries = ordered.associateWith { state.configs[it]?.summary() },
-                notSeen = flagged,
+                notSeen = emptySet(), // the card's second line says it instead
                 emptyLabel = getString(R.string.empty_widget),
                 newest = getString(R.string.chip_newest),
                 older = getString(R.string.chip_older),

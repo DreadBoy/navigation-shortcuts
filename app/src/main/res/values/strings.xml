@@ -20,8 +20,8 @@
     <string name="main_widget_row_hint">Tap to edit destinations and look</string>
     <string name="main_widget_row_not_seen">Not on your home screen (replaced in Niagara?)</string>
     <plurals name="stranded_text">
-        <item quantity="one">A widget that is no longer on your home screen still holds 1 place: %2$s.</item>
-        <item quantity="other">A widget that is no longer on your home screen still holds %1$d places: %2$s.</item>
+        <item quantity="one">A widget that is no longer on your home screen still holds 1 place: %2$s</item>
+        <item quantity="other">A widget that is no longer on your home screen still holds %1$d places: %2$s</item>
     </plurals>
     <plurals name="stranded_move">
         <item quantity="one">Move 1 place to the widget on your home screen</item>
