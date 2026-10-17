@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Undo bar (decisions 5b E18): inverse surface, like a snackbar in dark mode. -->
+    <color name="undo_bar_background">#FFE3E2E9</color>
+    <color name="undo_bar_text">#FF2F3036</color>
+    <color name="undo_bar_action">#FF3F5F90</color>
+</resources>

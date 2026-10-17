@@ -273,7 +273,7 @@
             android:accessibilityLiveRegion="polite"
             android:ellipsize="end"
             android:maxLines="2"
-            android:textColor="#FFF1F1F4" />
+            android:textColor="@color/undo_bar_text" />
 
         <Button
             android:id="@+id/undo_button"
@@ -282,7 +282,7 @@
             android:layout_height="wrap_content"
             android:text="@string/undo"
             android:textAllCaps="false"
-            android:textColor="#FFA8C7FA" />
+            android:textColor="@color/undo_bar_action" />
     </LinearLayout>
 
     <LinearLayout
