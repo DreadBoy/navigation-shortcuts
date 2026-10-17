@@ -38,13 +38,30 @@ object IconLayout {
         return null
     }
 
+    /** Largest label inset (dp): a small dot (Dots) or a narrow glyph must not push labels far right (round 3). */
+    const val MAX_LABEL_INSET_DP = 8
+
     /**
      * Label start inside the cell (px): the view padding plus the median visible left edge of the icons, scaled from
-     * bitmap px ([bitmapPx]) to the drawn size ([contentPx]); just the padding when no edge is known.
+     * bitmap px ([bitmapPx]) to the drawn size ([contentPx]), at most [maxPx]; just the padding when no edge is known.
      */
-    fun labelStartPx(paddingPx: Int, edges: List<Int>, bitmapPx: Int, contentPx: Int): Int {
+    fun labelStartPx(paddingPx: Int, edges: List<Int>, bitmapPx: Int, contentPx: Int, maxPx: Int = Int.MAX_VALUE): Int {
         if (edges.isEmpty() || bitmapPx <= 0) return paddingPx
         val median = edges.sorted()[edges.size / 2]
-        return paddingPx + (median.toDouble() * contentPx / bitmapPx).roundToInt()
+        return (paddingPx + (median.toDouble() * contentPx / bitmapPx).roundToInt()).coerceAtMost(maxOf(paddingPx, maxPx))
     }
+
+    /**
+     * One cell's label start: the inset, reduced only as far as needed so it never makes a label ellipsize that would
+     * fit without it (room = [cellPx] minus [reservedPx] end padding, label [labelPx] wide); never below [paddingPx].
+     * A label too long for the cell anyway keeps the inset (it ellipsizes either way).
+     */
+    fun fitLabelStartPx(startPx: Int, paddingPx: Int, cellPx: Int, reservedPx: Int, labelPx: Int): Int {
+        val room = cellPx - reservedPx
+        if (labelPx > room - paddingPx) return startPx
+        return startPx.coerceAtMost(maxOf(paddingPx, room - labelPx))
+    }
+
+    /** Whether the label follows the icons' visible edge: not for Dots, whose dot sits in the middle of the view. */
+    fun alignsLabel(style: AnyconSettings): Boolean = style.style.usesGlyph
 }

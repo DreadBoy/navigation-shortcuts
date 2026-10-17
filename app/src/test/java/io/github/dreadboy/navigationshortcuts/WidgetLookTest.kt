@@ -31,6 +31,8 @@ class WidgetLookTest {
         assertEquals(home, DestinationColors.colorFor("act_home", "x"))
         assertEquals(gym, DestinationColors.colorFor("cat_soccer_game", "x"))
         assertEquals(work, DestinationColors.colorFor("act_briefcase", "x"))
+        // The castle/landmark glyph has a category colour, not a pin's fallback (round 3).
+        assertEquals(travel, DestinationColors.colorFor("cat_tower_defense_game", "x"))
     }
 
     @Test
@@ -198,5 +200,19 @@ class WidgetLookTest {
         assertEquals(20, IconLayout.labelStartPx(0, listOf(19, 20, 18, 30), 116, 116))
         assertEquals(20, IconLayout.labelStartPx(0, listOf(10), 58, 116))
         assertEquals(9, IconLayout.labelStartPx(9, emptyList(), 0, 98))
+        // Capped (round 3): a Dots dot at 0.375 of the view must not push the label far right.
+        assertEquals(21, IconLayout.labelStartPx(0, listOf(43), 116, 116, 21))
+        assertEquals(9, IconLayout.labelStartPx(9, listOf(43), 98, 98, 5))
+        assertTrue(IconLayout.alignsLabel(WidgetConfig.DEFAULT_STYLE))
+        assertFalse(IconLayout.alignsLabel(AnyconSettings(style = AnyconStyle.Dots())))
+        // Never makes a label ellipsize that fits without the inset: 6 columns, 138 px cell, 21 px reserved,
+        // "Doma" 117 px wide -> no room for an inset; a short label keeps it; one 10 px short gets 10 px.
+        assertEquals(0, IconLayout.fitLabelStartPx(21, 0, 138, 21, 117))
+        assertEquals(21, IconLayout.fitLabelStartPx(21, 0, 138, 21, 60))
+        assertEquals(10, IconLayout.fitLabelStartPx(21, 0, 138, 21, 107))
+        // Too long for the cell anyway: keeps the inset (ellipsizes either way); the padding is never undercut.
+        assertEquals(21, IconLayout.fitLabelStartPx(21, 0, 138, 21, 200))
+        assertEquals(9, IconLayout.fitLabelStartPx(19, 9, 138, 21, 108))
+        assertEquals(12, IconLayout.fitLabelStartPx(19, 9, 138, 21, 105))
     }
 }

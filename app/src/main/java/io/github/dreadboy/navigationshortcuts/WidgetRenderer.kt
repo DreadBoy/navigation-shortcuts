@@ -26,13 +26,22 @@ object WidgetRenderer {
         val paddingPx = IconLayout.paddingPx(config.style, viewPx)
         val contentPx = viewPx - 2 * paddingPx
         val icons = drawIcons(context, appWidgetId, config, contentPx)
-        val labelStartPx = IconLayout.labelStartPx(
+        val density = context.resources.displayMetrics.density
+        val labelEndPx = (2 * density).roundToInt()
+        val labelStartPx = if (!IconLayout.alignsLabel(config.style)) paddingPx else IconLayout.labelStartPx(
             paddingPx,
             icons.values.mapNotNull { leftEdge(it) },
             icons.values.firstOrNull()?.width ?: 0,
             contentPx,
+            (IconLayout.MAX_LABEL_INSET_DP * density).roundToInt(),
         )
-        val labelEndPx = (2 * context.resources.displayMetrics.density).roundToInt()
+        val labelPaint = labelPaint(context, size)
+        // Cell width in Niagara's 315 dp slot; reserved = the cell's 4 dp and the label's end padding (+ 2 px slack).
+        val cellPx = (IconSize.SLOT_WIDTH_DP * density / config.cols).roundToInt()
+        val reservedPx = (IconSize.CELL_PADDING_DP * density).roundToInt() + labelEndPx + 2
+        fun labelStartFor(entry: Entry) = IconLayout.fitLabelStartPx(
+            labelStartPx, paddingPx, cellPx, reservedPx, labelPaint.measureText(entry.label).roundToInt(),
+        )
         val root = RemoteViews(context.packageName, R.layout.widget_grid)
         root.setImageViewUri(R.id.render_probe, RenderProbe.uri(context, appWidgetId, RenderProbe.nextGeneration(context, appWidgetId)))
         root.removeAllViews(R.id.grid_root)
@@ -57,7 +66,7 @@ object WidgetRenderer {
                 rowViews.addView(
                     R.id.grid_row,
                     if (entry != null) {
-                        filledCell(context, appWidgetId, index, entry, icons[index], size, paddingPx, labelStartPx, labelEndPx)
+                        filledCell(context, appWidgetId, index, entry, icons[index], size, paddingPx, labelStartFor(entry), labelEndPx)
                     } else {
                         emptyCell(context, appWidgetId, index)
                     },
@@ -130,6 +139,15 @@ object WidgetRenderer {
         IconSize.DEFAULT -> R.layout.widget_cell_default
         IconSize.LARGE -> R.layout.widget_cell_large
     }
+
+    /** Paint like the cell label at [size] (system sans-serif), to measure label widths. */
+    private fun labelPaint(context: Context, size: IconSize) =
+        android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = android.graphics.Typeface.SANS_SERIF
+            textSize = android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_SP, size.labelSp.toFloat(), context.resources.displayMetrics,
+            )
+        }
 
     /** Leftmost visible column of [bitmap] (IconLayout.leftEdge), or null if it can't be read. */
     private fun leftEdge(bitmap: Bitmap): Int? = try {

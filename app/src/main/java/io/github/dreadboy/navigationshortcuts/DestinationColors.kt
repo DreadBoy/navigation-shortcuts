@@ -61,6 +61,7 @@ object DestinationColors {
         put(Family.SHOCKING_PINK, "cat_shopping", "act_credit_card") // shopping
         put(Family.RASPBERRY, "cat_health", "cat_doctor_game", "cat_dentist_game", "act_heart") // health
         put(Family.SKY, "cat_air_travel", "cat_travel", "act_travel_explore", "act_globe", "act_sun_horizon") // travel
+        put(Family.SKY, "cat_tower_defense_game") // castle / landmark (decisions 5b E12): sightseeing, like travel
         put(Family.PURPLE, "cat_education", "cat_educational_game", "cat_language_education", "cat_books") // school
         put(Family.TEAL, "cat_cars", "cat_public_transport", "cat_taxi_and_rideshare", "cat_maps_and_navigation") // transport
         put(Family.TURQUOISE, "act_jellyfish", "act_anycons_koi") // water / pool

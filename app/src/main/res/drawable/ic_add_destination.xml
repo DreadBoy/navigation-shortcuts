@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- "+ Add destinations" cell of an empty widget (decisions 5b E4): a white plus on a translucent white disc with a
-     thin outline, visible on dark and light wallpapers. -->
+     thin outline, visible on dark and light wallpapers. The disc is 98/116 of the view (37.2 of 44), like Niagara's
+     visible adaptive icons (round 3). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="44dp"
     android:height="44dp"
@@ -8,11 +9,11 @@
     android:viewportHeight="44">
     <path
         android:fillColor="#40FFFFFF"
-        android:pathData="M22,2a20,20 0,1 1,0 40a20,20 0,1 1,0 -40z"
+        android:pathData="M22,3.8a18.2,18.2 0,1 1,0 36.4a18.2,18.2 0,1 1,0 -36.4z"
         android:strokeWidth="1.5"
         android:strokeColor="#B3FFFFFF" />
     <path
-        android:pathData="M22,13v18M13,22h18"
+        android:pathData="M22,14v16M14,22h16"
         android:strokeWidth="3"
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round" />
