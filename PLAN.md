@@ -97,8 +97,8 @@ User decision 2026-10-16: no APK goes to the user until the plan below is finish
 - [x] 5b.5 Final exploratory pass on the finished build (fresh agent, blind): no major or minor findings left open except triaged backlog; then 6.2. — Fresh verifier VF on 0.4.0 (0c2ee6f): HAPPY, no blocker/major, no crash/ANR/data loss, upgrade 0.3.1 → 0.4.0 keeps everything; its 4 minor + 5 polish findings triaged to the backlog (5b entries).
 
 ### Phase 6 — In-car flow and full suite
-- [ ] 6.1 [B] E2E scenario 6: notes widget on top of the stack, swipe to reveal, tap, Maps navigation in foreground.
-- [ ] 6.2 Full suite (1–7) green three runs in a row locally, no retries.
+- [x] 6.1 [B] E2E scenario 6: notes widget on top of the stack, swipe to reveal, tap, Maps navigation in foreground. — Stacks need Niagara Pro, so automated tests use a single widget (user decision 2026-10-16); the user verified the stack by hand on the Pixel 10 (2.4).
+- [x] 6.2 Full suite (1–7) green three runs in a row locally, no retries. — Against the release APK dist/navigation-shortcuts-0.4.0.apk (fresh verifier, 2026-10-17): runs 2–4 green (22/0/0/1; Maps-stall recoveries 0, 0, 2), plus debug run green (22/0/0/0). Run 1 failed in Maps' own place search (known flake). Suite now runs on release via `pm clear` reset (decisions 6.2). Maps-stall recovery is a coordinator decision pending user sign-off (see Open user decisions).
 
 ### Phase 7 — CI and release
 - [x] 7.0 GitHub repo `DreadBoy/navigation-shortcuts` created by the user (public, empty as of 2026-10-15).
@@ -110,6 +110,7 @@ User decision 2026-10-16: no APK goes to the user until the plan below is finish
 ---
 
 ### Open user decisions
+- **E2E Maps-stall recovery vs. the spec's "no retries" rule:** when Google Maps is in front with our verified navigation intent but stuck (route preview or "Finding best route"), the test taps Start or re-sends the same intent once, logged and counted. Without it, about 1 run in 2 fails on Maps alone. The release gate allows at most 2 recoveries per run, and the same test must not recover in two runs in a row. Needs the user's OK, because it changes spec line 200.
 - **Disk:** ~9.5 GB free after blocking Play Store self-updates in the AVD; E2E fits, but headroom is thin. Largest regenerable items not created by this project: `~/.gradle/caches/9.5.0` (5.4 GB), `~/.gradle/caches/8.11.1` (1.3 GB), system image `android-34/google_apis` (4.2 GB). Not touched without the user's go-ahead.
 
 ## v2 (do not start without explicit go-ahead)
@@ -209,3 +210,6 @@ _(issues found during verification, with repro and severity)_
 - [polish] (5b, V1) In a 2-row grid in the default 80 dp slot icons shrink to ~33 px while labels stay 16 sp (the tall hint covers it). Green sport sticker on the share sheet's dark green icon disc has low contrast.
 - [info] (5b, V1b) E2E runs leave widget records/ghosts in the store that the share chooser lists until the next uninstall.
 - [medium, release gate] (5b, VR) The E2E suite can no longer run against a release APK: since 5b E5 every E2E class's setUp calls the debug-only `CLEAR_PENDING` broadcast (`DebugStoreReceiver`), so all 21 fail in `@Before` on release (IconsE2eTest also needs DUMP_STORE/SET_ICON). 0.4.0's release APK was verified manually instead (VR: share → new widget → navigate, packs/size, picker Apps/spotify, castle + empty "+" drawables, dark-mode edits kept, upgrade 0.3.1 → 0.4.0, empty crash log). Fix before the 7.3 tag: on release, reset state without the hook (e.g. instrumentation arg + uninstall/reinstall between classes) and mark store-asserting tests debug-only.
+- [low] (6.2) BTC City repeatedly lands on Maps' route preview (construction notice) instead of navigation; a real user tapping that cell may see the preview. Maps-side; watch on the phone.
+- [low] (6.2) Four navigation assertions don't check the destination (IconsE2eTest:114/:153, WidgetE2eTest:192/:217); recovery reads intents as a set, so a double launch is invisible; `AppStore.reset` waits a fixed 500 ms for onDeleted (wait for unbind instead); a run-e2e timeout leaves `am instrument` running on the device.
+- [low] (6.2) Recovery should also compare the recorded intent flags/package with what WidgetRenderer sends, so a flags regression can't hide behind it.

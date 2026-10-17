@@ -130,7 +130,7 @@ Pass criterion:
 - Release run: exit code 0 and the summary line `[run-e2e] tests=22 failures=0 errors=0 skipped=1`. The one skip must be `storedBuiltInIcons_renderAsTheirNiagaraGlyphs_debugOnly` (listed as `SKIPPED`): it seeds a 0.2.0-style `builtin` icon through the debug-only store hook, which a release APK does not have (decisions 6.2). Every other test runs on the release APK.
 - Debug run: exit code 0 and `[run-e2e] tests=22 failures=0 errors=0 skipped=0` (this run covers the skipped test).
 - The test count grows when tests are added; the skip count must not.
-- After the summary, `[run-e2e] maps-stall recoveries: N` lists each one-time recovery from the known Google Maps stall (Maps in front with our verified navigation intent but not navigating; decisions 6.2). A recovered test counts as passed; put N into the release notes with the summary lines.
+- After the summary, `[run-e2e] maps-stall recoveries: N` lists each one-time recovery from the known Google Maps stall (Maps in front with our verified navigation intent but not navigating; decisions 6.2). A recovered test counts as passed only if N ≤ 2 for the run and no test recovered in the previous gate run too; otherwise the gate fails (a regression in how we launch Maps would show up as many recoveries). Put N into the release notes with the summary lines.
 
 A red test (including a known Maps flake, decisions 1.8) means: look at it, rerun, and tag only after a fully green run on that same `HEAD`. Put the commit, the release APK's sha256 and both summary lines into the draft release notes.
 
