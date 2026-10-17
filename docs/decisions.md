@@ -433,6 +433,11 @@ Checked on the AVD (API 36, Niagara 1.16.33 free, Maps 25.11) with real Niagara,
   - Checked on the AVD: app screen → edit → Home → Niagara icon: config with the edit; same after `am kill` (new process, restored). Widget cell → edit → Home → cell: edit back (draft); Niagara "Change widget settings" → edit → Home → again: edit back; cell → edit → Home → app icon → the widget's card: edit back. Recents can't be driven on this AVD (Niagara is home; the recents key does nothing) — covered by the saved-state path (round 2). Robolectric test (draft back in a fresh screen; gone after Discard) and two E2E tests (app screen + icon relaunch; widget cell + Home + cell).
 - **App screen cards**: white card with a thin outline and primary-colour title in light mode (round 1's grey fill looked disabled), a lighter grey card in dark mode.
 
+### 0.4.0 build and verification
+
+- Integrated tip 0c2ee6f (widget look + picker + settings/sheet UX), versionCode 5, versionName 0.4.0. Unit 186/186, lint 0 errors; debug E2E 21/21 twice in a row (885 s, 873 s) by a fresh final verifier, HAPPY (no blocker/major, no crash/ANR/data loss; 4 minor + 5 polish to the backlog).
+- Release APK `dist/navigation-shortcuts-0.4.0.apk`: 893,931 bytes, sha256 `b3b92690…a535de87f`, signer `CN=Matic Leva`, cert `3adccc33…2013d` (unchanged). R8/resource shrinking checked by hand on the release build (share, navigation, packs, picker Apps, castle and "+" drawables present, dark-mode edits kept, upgrade 0.3.1 → 0.4.0 keeps widget and places). The release E2E run was not possible: the suite now depends on a debug-only store hook (backlog, fix before the 7.3 tag).
+
 ## Known issues
 
 - **Niagara (1.16.33 free): pinning while one of our widgets is placed gets stuck** (measured in 3.2). "+ Create new widget" → Niagara's "Add to home screen" → **Okay** → Niagara opens "Create Widget Stack?", but its transparent `AddItemActivity` stays on top and swallows every tap. Only **Back** gets out; nothing is placed and the place stays pending (it appears in the next widget the user adds). Accepted by the user as a Niagara bug (decisions 5.7); could be reported to Niagara's developer. Niagara Pro (widget stacks) may behave differently — check on the Pixel.
