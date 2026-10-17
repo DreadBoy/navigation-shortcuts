@@ -36,7 +36,7 @@ class ConfigE2eTest {
         niagara.assertIsDefaultHome()
         maps.forceStop()
         niagara.removeCustomWidgetIfPresent()
-        AppStore(d).clearPending() // a removed widget's places stay pending (decisions 5b E5): start clean
+        AppStore(d).reset() // a removed widget's places stay pending (decisions 5b E5): start clean (pm clear)
         val stray = niagara.boundWidgetIdsOfOurApp()
         if (stray.isNotEmpty()) {
             throw AssertionError("Widget IDs $stray still bound to our provider (ghosts, decisions 3.9): run e2e/run-e2e.sh")

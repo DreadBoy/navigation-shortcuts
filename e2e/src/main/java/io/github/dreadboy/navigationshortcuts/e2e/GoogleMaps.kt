@@ -1,12 +1,14 @@
 package io.github.dreadboy.navigationshortcuts.e2e
 
 import android.util.Log
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.Until
 import io.github.dreadboy.navigationshortcuts.e2e.E2eDevice.Companion.res
 import io.github.dreadboy.navigationshortcuts.e2e.E2eDevice.Companion.resAny
+import java.io.File
 
 /** Google Maps assertions. "Navigation is showing" IDs: docs/decisions.md 1.2. */
 class GoogleMaps(private val d: E2eDevice) {
@@ -33,21 +35,74 @@ class GoogleMaps(private val d: E2eDevice) {
 
     /** Asserts that Maps is the foreground app and shows active turn-by-turn navigation. */
     fun assertNavigationInForeground(timeoutMs: Long = E2e.LONG) {
+        if (!awaitNavigation(timeoutMs)) {
+            // Known Maps-side stall (decisions 1.8 / 4.1 / 6.2): Maps is in front with our navigation intent but stays
+            // on its home, the route preview or "Finding best route...". Recover once, logged, then wait again.
+            val stall = recoverMapsStall() ?: throw navigationTimeout(timeoutMs, "")
+            if (!awaitNavigation(timeoutMs)) throw navigationTimeout(timeoutMs, " after [maps-stall] $stall")
+        }
+        val fg = d.ui.currentPackageName
+        if (fg != E2e.MAPS) throw AssertionError("Navigation UI found but foreground package is $fg")
+    }
+
+    /** Waits up to [timeoutMs] for active navigation; true when it shows. */
+    private fun awaitNavigation(timeoutMs: Long): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
         // The dialog sits on top of the navigation screen, so check it on every round, including the last.
         while (dismissNavigationWelcomeIfShown() || acceptLocationAccuracyIfShown() ||
             !d.ui.wait(Until.hasObject(activeNavigation), POLL_MS)
         ) {
-            if (System.currentTimeMillis() > deadline) {
-                throw AssertionError(
-                    "Timed out after $timeoutMs ms waiting for Google Maps active navigation " +
-                        "(foreground: ${d.ui.currentPackageName}; Maps intent: ${mapsLaunchIntent()}; " +
-                        "on screen: ${visibleMapsTexts()}; foreground texts: ${foregroundTexts()})",
-                )
-            }
+            if (System.currentTimeMillis() > deadline) return false
         }
-        val fg = d.ui.currentPackageName
-        if (fg != E2e.MAPS) throw AssertionError("Navigation UI found but foreground package is $fg")
+        return true
+    }
+
+    private fun navigationTimeout(timeoutMs: Long, suffix: String) = AssertionError(
+        "Timed out after $timeoutMs ms waiting for Google Maps active navigation$suffix " +
+            "(foreground: ${d.ui.currentPackageName}; Maps intent: ${mapsLaunchIntent()}; " +
+            "on screen: ${visibleMapsTexts()}; foreground texts: ${foregroundTexts()})",
+    )
+
+    /**
+     * Coordinator decision 6.2: one recovery from the Maps-side stall, only when Maps is the foreground app and the
+     * system recorded exactly one navigation intent for it, `google.navigation:q=…&mode=d` (the one our widget sent; the
+     * caller still checks its destination with [assertNavigationIntentFor]). Route preview showing → tap "Start" (what
+     * a user does); "Finding best route..." → force-stop Maps and re-send that same intent; Maps home → re-send it.
+     * Returns what was done, or null when the preconditions
+     * don't hold (then the wait fails as before: a wrong app or a wrong/missing intent is never masked).
+     * Every recovery is logged as "[maps-stall]" in logcat and in the test APK's maps-stall.log, which run-e2e.sh prints.
+     */
+    private fun recoverMapsStall(): String? {
+        if (d.ui.currentPackageName != E2e.MAPS) return null
+        val data = Regex("""dat=(google\.navigation:q=[^\s&]+&mode=d)(?=[\s}])""")
+            .findAll(d.shell("dumpsys activity activities")).map { it.groupValues[1] }.toSet()
+        if (data.size != 1) return null
+        val screen = when {
+            d.has(By.pkg(E2e.MAPS).text("Finding best route...")) -> "finding best route"
+            d.has(By.pkg(E2e.MAPS).desc("Start")) -> "route preview"
+            else -> "no navigation"
+        }
+        val action = if (screen == "route preview") {
+            d.find(By.pkg(E2e.MAPS).desc("Start"))?.click() ?: return null
+            "pressed Start"
+        } else {
+            // A warm re-send does not unstick "Finding best route..." (release run 7: still stuck 20 s later), so that
+            // case restarts Maps first; the cold-start drop on Maps home recovers with a warm re-send (run 6).
+            val cold = screen == "finding best route"
+            if (cold) forceStop()
+            // UiAutomation's shell has no quoting; the URI is percent-encoded (no spaces), so it passes as one argument.
+            d.shell("am start -a android.intent.action.VIEW -d ${data.single()} -p ${E2e.MAPS} -f 0x10000000")
+            if (cold) "re-sent after Maps restart" else "re-sent"
+        }
+        val test = Thread.currentThread().stackTrace.firstOrNull { it.className.endsWith("E2eTest") }
+            ?.let { "${it.className.substringAfterLast('.')}#${it.methodName}" } ?: "?"
+        val line = "[maps-stall] $action ($screen; ${data.single()}) in $test"
+        Log.w(TAG, line)
+        runCatching {
+            val dir = InstrumentationRegistry.getInstrumentation().context.getExternalFilesDir(null)
+            File(dir, STALL_LOG).appendText("$line\n")
+        }
+        return "$action ($screen)"
     }
 
     /** Failure diagnostics: the intent(s) the system recorded for Maps' activity (as `dumpsys` shows them). */
@@ -188,6 +243,7 @@ class GoogleMaps(private val d: E2eDevice) {
     private companion object {
         const val TAG = "NavShortE2e"
         const val POLL_MS = 1_000L
+        const val STALL_LOG = "maps-stall.log"
         const val GMS = "com.google.android.gms"
         const val MAPS_ACTIVITY = "com.google.android.apps.maps/com.google.android.maps.MapsActivity"
 

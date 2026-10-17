@@ -12,6 +12,7 @@ import androidx.test.uiautomator.Until
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,7 +23,8 @@ import kotlin.math.min
 
 /**
  * Decisions 5.6 (v0.3.1): with Niagara installed, Material icons never show. Real Niagara, real Maps share, real
- * taps. The only non-user step is the debug-build store hook that seeds a 0.2.0-style `builtin` icon (precondition).
+ * taps. The second test also needs the debug build's store hooks to seed a 0.2.0-style `builtin` icon (precondition)
+ * and read the stored data, so it is skipped against a release APK (decisions 6.2).
  */
 @RunWith(AndroidJUnit4::class)
 class IconsE2eTest {
@@ -31,13 +33,14 @@ class IconsE2eTest {
     private val niagara = Niagara(d)
     private val maps = GoogleMaps(d)
     private val sheet = ShareSheet(d)
+    private val store = AppStore(d)
 
     @Before
     fun setUp() {
         niagara.assertIsDefaultHome()
         maps.forceStop()
         niagara.removeCustomWidgetIfPresent()
-        AppStore(d).clearPending() // a removed widget's places stay pending (decisions 5b E5): start clean
+        store.reset() // a removed widget's places stay pending (decisions 5b E5): start clean (pm clear)
         val stray = niagara.boundWidgetIdsOfOurApp()
         if (stray.isNotEmpty()) {
             throw AssertionError("Widget IDs $stray still bound to our provider (ghosts, decisions 3.9): run e2e/run-e2e.sh")
@@ -50,13 +53,13 @@ class IconsE2eTest {
     }
 
     /**
-     * Share Stožice Stadium: the guessed icon is Niagara's soccer glyph (stored as `niagara`), the picker lists only
-     * Niagara glyphs (no "Built-in …" entry for any of the 15 Material names), and the cell is drawn as a Niagara glyph.
-     * Then a stored `builtin` icon (0.2.0 data) renders as its Niagara equivalent: `builtin:stadium` gives exactly the
-     * soccer glyph's pixels, `builtin:home` a different Niagara glyph — colourful, not the white Material vector.
+     * Share Stožice Stadium: the guessed icon is Niagara's soccer glyph, the picker lists only Niagara glyphs (no
+     * "Built-in …" entry for any of the 15 Material names), the cell is drawn as a colourful 44 dp Niagara glyph, the
+     * config screen names the stored icon "Soccer" (a stored `builtin:stadium` would read "Stadium") and the cell
+     * navigates. Debug and release builds.
      */
     @Test
-    fun niagaraPresent_shareGuessPickerAndStoredBuiltInIcons_areAllNiagaraGlyphs() {
+    fun niagaraPresent_shareGuessPickerAndCell_areAllNiagaraGlyphs() {
         niagara.addOurWidget()
         maps.openPlace(STOZICE.query, STOZICE.suggestion)
         sheet.shareFromMapsPlacePage(maps)
@@ -87,7 +90,6 @@ class IconsE2eTest {
         sheet.tapAdd()
         sheet.waitGone()
         niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
-        assertEquals("stored icon", "niagara" to "cat_soccer_game", storedIcon(STOZICE.label))
         SystemClock.sleep(1_000)
         val shared = iconArea(STOZICE.label)
         // Default icon size = Niagara's home-screen app icon, 44 dp (decisions 5b U).
@@ -95,6 +97,42 @@ class IconsE2eTest {
         assertEquals("icon width like Niagara's 44 dp app icons", expectedPx.toDouble(), shared.width.toDouble(), 2.0)
         saveScreenshot("widget-shared-stadium")
         assertTrue("shared cell is a colourful Niagara glyph (${colourful(shared)})", colourful(shared) > MIN_COLOURFUL)
+
+        // The stored icon as the user sees it named: the config screen's icon button (niagara:cat_soccer_game).
+        val config = ConfigScreen(d)
+        niagara.changeWidgetSettings()
+        config.awaitShown()
+        assertEquals(
+            "stored icon named in the config screen",
+            "Change icon for ${STOZICE.label}: Soccer",
+            config.entryIconDescription(STOZICE.label),
+        )
+        config.cancel()
+
+        maps.forceStop()
+        niagara.cell(STOZICE.label).click()
+        maps.assertNavigationInForeground()
+    }
+
+    /**
+     * 0.2.0 data: a stored `builtin` icon renders as its Niagara equivalent: `builtin:home` a different, colourful
+     * Niagara glyph (not the white Material vector), `builtin:stadium` exactly the soccer glyph's pixels; rendering
+     * leaves the stored data untouched. Needs the debug build's store hooks (DUMP_STORE/SET_ICON) to seed and read the
+     * stored icon, so it is skipped against a release APK (decisions 6.2).
+     */
+    @Test
+    fun storedBuiltInIcons_renderAsTheirNiagaraGlyphs_debugOnly() {
+        assumeTrue("needs the debug build's store hooks (DebugStoreReceiver): skipped on release", store.hasDebugHooks())
+        niagara.addOurWidget()
+        maps.openPlace(STOZICE.query, STOZICE.suggestion)
+        sheet.shareFromMapsPlacePage(maps)
+        assertEquals(STOZICE.label, sheet.label())
+        sheet.tapAdd()
+        sheet.waitGone()
+        niagara.assertWidgetCells(listOf(STOZICE.label), E2e.DEFAULT_CELLS - 1)
+        assertEquals("stored icon", "niagara" to "cat_soccer_game", storedIcon(STOZICE.label))
+        SystemClock.sleep(1_000)
+        val shared = iconArea(STOZICE.label)
 
         // 0.2.0 data: builtin:home → Niagara's home glyph (a re-render, different from the soccer glyph).
         seedIcon(STOZICE.label, "builtin", "home")

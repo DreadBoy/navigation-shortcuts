@@ -5,8 +5,18 @@
 #   3. pins the mock location, uninstalls the app (clears Niagara ghost widget IDs), installs app and test APKs,
 #      force-stops Niagara, runs the :e2e suite, then GhostWidgetE2eTest last; prints merged results.
 #
-# Usage: e2e/run-e2e.sh [extra gradle args...]
-# Env:   NIAGARA_APK   Niagara APK for provisioning (default: vendor/niagara.apk of this checkout, else of the
+# Usage: e2e/run-e2e.sh [extra gradle args...]                     debug build of this checkout (normal dev run)
+#        APP_APK=/path/to/app.apk e2e/run-e2e.sh [extra gradle args...]   a given app APK, e.g. the release APK to tag:
+#          APP_APK=dist/navigation-shortcuts-0.4.1.apk e2e/run-e2e.sh  (release gate, docs/release-procedure.md)
+#        APP_APK=release e2e/run-e2e.sh                             builds :app:assembleRelease of this checkout
+#                      (needs the signing properties, docs/release-procedure.md) and tests that APK
+# Env:   APP_APK       app APK to test instead of the debug build (see Usage). The installed app is uninstalled first,
+#                      so a release-signed APK replaces a debug one and vice versa. The test APK (:e2e, debug-signed,
+#                      self-instrumenting) needs no matching signature. With APP_APK the suite runs through
+#                      `am instrument` (e2e/instrument-junit.py writes the JUnit XML), because Gradle's connected task
+#                      would re-install the debug app. Against a release APK, IconsE2eTest's builtin-icon test needs
+#                      debug-only store hooks and is reported as skipped (exactly 1 skip; decisions 6.2).
+#        NIAGARA_APK   Niagara APK for provisioning (default: vendor/niagara.apk of this checkout, else of the
 #                      main checkout when run from a git worktree under .claude/worktrees/)
 #        AVD           AVD to boot when no device is connected (default navshort-e2e)
 #        ANDROID_SERIAL  device to use when several are connected (also honoured by Gradle)
@@ -43,6 +53,12 @@ log() { echo "[run-e2e] $*"; }
 die() { echo "[run-e2e] ERROR: $*" >&2; exit 1; }
 case "$E2E_WAIT_SCALE" in ''|*[!0-9]*|0*) die "E2E_WAIT_SCALE must be an integer 1-10 (got '$E2E_WAIT_SCALE')" ;; esac
 [ "$E2E_WAIT_SCALE" -le 10 ] || die "E2E_WAIT_SCALE must be an integer 1-10 (got '$E2E_WAIT_SCALE')"
+
+# A relative APP_APK is relative to the caller's directory (the script cds to the repo root later).
+case "${APP_APK:-}" in
+  ''|release|/*) ;;
+  *) APP_APK="$PWD/$APP_APK" ;;
+esac
 
 if [ -z "${NIAGARA_APK:-}" ]; then
   NIAGARA_APK="$ROOT/vendor/niagara.apk"
@@ -209,9 +225,45 @@ GHOST_CLASS=io.github.dreadboy.navigationshortcuts.e2e.GhostWidgetE2eTest
 # only an uninstall clears; GhostWidgetE2eTest creates them on purpose. Then install and restart Niagara: after our
 # app is (re)installed, a running Niagara can keep a stale provider cache and show "Problem loading widget" for a
 # newly placed widget (PLAN backlog). The test task below re-installs the same APKs with `install -r`, which is fine.
+# The uninstall also lets a release-signed APP_APK replace a debug build and vice versa (different signing keys).
+# Between tests, each setUp resets the app's data with `pm clear` (AppStore.reset, decisions 6.2).
 a uninstall "$APP_ID" >/dev/null 2>&1 && log "uninstalled $APP_ID (clears ghost widget IDs)" || true
-with_budget ./gradlew :app:installDebug :e2e:installDebug "$@" || status=$?
-if [ "$status" = 0 ]; then
+# Maps-stall recoveries the suite made (GoogleMaps.recoverMapsStall, decisions 6.2); printed after the summary.
+STALL_LOG="/sdcard/Android/data/$E2E_PACKAGE/files/maps-stall.log"
+a shell rm -f "$STALL_LOG" >/dev/null 2>&1 || true
+if [ -n "${APP_APK:-}" ]; then
+  if [ "$APP_APK" = release ]; then
+    with_budget ./gradlew :app:assembleRelease "$@" || status=$?
+    APP_APK="$ROOT/app/build/outputs/apk/release/app-release.apk"
+  fi
+  if [ "$status" = 0 ]; then
+    [ -f "$APP_APK" ] || die "APP_APK '$APP_APK' not found"
+    log "app under test: $APP_APK (sha256 $(shasum -a 256 "$APP_APK" | cut -d' ' -f1))"
+    a install "$APP_APK" >/dev/null || status=$?
+  fi
+  if [ "$status" = 0 ]; then
+    with_budget ./gradlew :e2e:assembleDebug "$@" || status=$?
+  fi
+  if [ "$status" = 0 ]; then
+    a install -r -t -g "$ROOT/e2e/build/outputs/apk/debug/e2e-debug.apk" >/dev/null || status=$?
+  fi
+  if [ "$status" = 0 ]; then
+    log "installed app $(a shell dumpsys package "$APP_ID" | tr -d '\r' | grep -m1 -o 'versionName=.*' || true) and the test APK"
+    a shell am force-stop bitpit.launcher
+    log "Niagara force-stopped after install"
+    RUNNER="$E2E_PACKAGE/androidx.test.runner.AndroidJUnitRunner"
+    # Same two passes as the Gradle path below. `am instrument` leaves the APKs installed.
+    with_budget python3 -I "$HERE/instrument-junit.py" "$MERGED/1-TEST-instrument.xml" "$E2E_PACKAGE" \
+      "$ADB" -s "$ANDROID_SERIAL" shell am instrument -w -r -e waitScale "$E2E_WAIT_SCALE" \
+      -e notClass "$GHOST_CLASS" "$RUNNER" || status=$?
+    with_budget python3 -I "$HERE/instrument-junit.py" "$MERGED/2-TEST-instrument.xml" "$E2E_PACKAGE" \
+      "$ADB" -s "$ANDROID_SERIAL" shell am instrument -w -r -e waitScale "$E2E_WAIT_SCALE" \
+      -e class "$GHOST_CLASS" "$RUNNER" || status=$?
+  fi
+else
+  with_budget ./gradlew :app:installDebug :e2e:installDebug "$@" || status=$?
+fi
+if [ -z "${APP_APK:-}" ] && [ "$status" = 0 ]; then
   a shell am force-stop bitpit.launcher
   log "Niagara force-stopped after install"
   # Keep the APKs installed afterwards so the widget and app stay usable for manual checks.
@@ -251,9 +303,16 @@ for name, t in cases:
     print("[run-e2e]   %-80s %7ss" % (name, t))
 for name, msg in failed:
     print("[run-e2e] FAILED %s: %s" % (name, msg))
+for path in sys.argv[1:]:
+    for m in re.finditer(r'<testcase name="([^"]*)"[^>]*?(?<!/)>(.*?)</testcase>', open(path).read(), re.S):
+        if "<skipped" in m.group(2):
+            print("[run-e2e] SKIPPED %s" % m.group(1))
 EOF
 else
   log "no test results (build or install failed before the tests ran)"
 fi
+stalls=$(a shell cat "$STALL_LOG" 2>/dev/null | tr -d '\r' | grep '^\[maps-stall\]' || true)
+log "maps-stall recoveries: $(printf '%s' "$stalls" | grep -c . || true)"
+[ -n "$stalls" ] && printf '%s\n' "$stalls" | sed 's/^/[run-e2e]   /'
 log "suite finished in $(( $(date +%s) - start ))s, exit $status"
 exit $status

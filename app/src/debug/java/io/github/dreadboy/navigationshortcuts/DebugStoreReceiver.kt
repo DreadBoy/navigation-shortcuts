@@ -16,9 +16,8 @@ import kotlinx.serialization.builtins.serializer
  * - `DUMP_STORE`: result data = JSON `{"<widgetId>": [entries…]}` of the stored configs.
  * - `SET_ICON` (`--ei index I --es source S --es name N`): sets the stored icon of the entry at index I of every
  *   widget (e.g. a 0.2.0-style `builtin` ref) and re-renders the widgets. Only for seeding preconditions, never the user path.
- * - `CLEAR_PENDING`: drops the configs of widgets no longer bound, then empties the pending list (result data
- *   `dropped=N`). E2E test isolation only: since decisions 5b E5 a removed widget's destinations stay pending, so each
- *   test's setUp clears what the previous test's widget left behind.
+ * Test isolation between E2E tests no longer uses a hook: each setUp runs `pm clear` (decisions 6.2), so the suite also
+ * runs against a release APK; only IconsE2eTest's `builtin`-seeding test needs these hooks and is skipped there.
  */
 class DebugStoreReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -26,18 +25,6 @@ class DebugStoreReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val store = WidgetStore(context)
-                if (intent.action == ACTION_CLEAR_PENDING) {
-                    var dropped = 0
-                    val bound = store.boundWidgetIds()
-                    store.update { state ->
-                        val pruned = state.prune(bound)
-                        dropped = pruned.pending.size
-                        pruned.copy(pending = emptyList())
-                    }
-                    Log.i(TAG, "cleared $dropped pending entries")
-                    pending.resultData = "dropped=$dropped"
-                    return@launch
-                }
                 if (intent.action == ACTION_SET_ICON) {
                     val index = intent.getIntExtra("index", 0)
                     val icon = IconRef(intent.getStringExtra("source").orEmpty(), intent.getStringExtra("name").orEmpty())
@@ -64,7 +51,5 @@ class DebugStoreReceiver : BroadcastReceiver() {
 
     private companion object {
         const val TAG = "NavShortDebug"
-        const val ACTION_SET_ICON = "io.github.dreadboy.navigationshortcuts.debug.SET_ICON"
-        const val ACTION_CLEAR_PENDING = "io.github.dreadboy.navigationshortcuts.debug.CLEAR_PENDING"
-    }
+        const val ACTION_SET_ICON = "io.github.dreadboy.navigationshortcuts.debug.SET_ICON"    }
 }

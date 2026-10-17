@@ -29,6 +29,10 @@ class ConfigScreen(private val d: E2eDevice) {
     fun entries(): List<String> =
         d.ui.findObjects(id("entry_label")).sortedBy { it.visibleBounds.top }.map { it.text }
 
+    /** Accessibility label of the icon button of the entry [label]: "Change icon for <label>: <icon name>" (E22). */
+    fun entryIconDescription(label: String): String =
+        scrollTo(By.res(E2e.APP, "entry_icon").descStartsWith("Change icon for $label: ")).contentDescription.orEmpty()
+
     fun rows(): Int = d.waitFor(id("rows_value"), what = "rows value").text.toInt()
     fun cols(): Int = d.waitFor(id("cols_value"), what = "columns value").text.toInt()
 

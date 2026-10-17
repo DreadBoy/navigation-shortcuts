@@ -112,16 +112,27 @@ The release is a **draft**: the user checks it on the Releases page (compare the
 
 ### Required pre-tag gate: local E2E green on the release commit
 
-CI does not run the E2E suite for a release, so before a tag is pushed the suite must pass locally on exactly the commit that gets tagged:
+CI does not run the E2E suite for a release, so before a tag is pushed the suite must pass locally on exactly the commit that gets tagged, against the **release APK** of that commit (signed, R8-shrunk: what users install), and against its debug build:
 
 ```sh
 git switch main && git pull --ff-only     # the commit to tag
 git status --porcelain                    # must print nothing (clean tree)
 git rev-parse HEAD                        # note it: this commit gets the tag
-e2e/run-e2e.sh                            # local AVD navshort-e2e + vendor/niagara.apk; boots the AVD if needed
+./gradlew assembleRelease                 # signed release APK of HEAD (signing properties, see above)
+APP_APK=app/build/outputs/apk/release/app-release.apk e2e/run-e2e.sh   # release gate
+e2e/run-e2e.sh                            # debug run of the same HEAD
 ```
 
-Pass = exit code 0 and the summary line `[run-e2e] tests=N failures=0 errors=0 skipped=0`. A red test (including a known Maps flake, decisions 1.8) means: look at it, rerun, and tag only after a fully green run on that same `HEAD`. Put the commit and the summary line into the draft release notes.
+Both runs use the local AVD `navshort-e2e` and `vendor/niagara.apk` and boot the AVD if needed. `APP_APK=release e2e/run-e2e.sh` does the build and the release run in one step. `APP_APK` can also name a kept copy, e.g. `APP_APK=dist/navigation-shortcuts-<versionName>.apk`; the script prints the APK's sha256 so it can be compared with the release asset. `run-e2e.sh` uninstalls the app first, so a release-signed APK replaces a debug build on the emulator and the other way round.
+
+Pass criterion:
+
+- Release run: exit code 0 and the summary line `[run-e2e] tests=22 failures=0 errors=0 skipped=1`. The one skip must be `storedBuiltInIcons_renderAsTheirNiagaraGlyphs_debugOnly` (listed as `SKIPPED`): it seeds a 0.2.0-style `builtin` icon through the debug-only store hook, which a release APK does not have (decisions 6.2). Every other test runs on the release APK.
+- Debug run: exit code 0 and `[run-e2e] tests=22 failures=0 errors=0 skipped=0` (this run covers the skipped test).
+- The test count grows when tests are added; the skip count must not.
+- After the summary, `[run-e2e] maps-stall recoveries: N` lists each one-time recovery from the known Google Maps stall (Maps in front with our verified navigation intent but not navigating; decisions 6.2). A recovered test counts as passed; put N into the release notes with the summary lines.
+
+A red test (including a known Maps flake, decisions 1.8) means: look at it, rerun, and tag only after a fully green run on that same `HEAD`. Put the commit, the release APK's sha256 and both summary lines into the draft release notes.
 
 Flow for a release: bump `versionCode` and `versionName`, commit, push `main` (CI green), run the local E2E gate above on that commit, then with approval `git tag v<versionName> && git push origin v<versionName>`.
 
